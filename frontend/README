@@ -1,0 +1,193 @@
+# ============ CORE DEPENDENCIES ============
+
+# Routing
+npm install react-router-dom
+
+# HTTP Client
+npm install axios
+
+# State Management (optionnel mais recommandé)
+npm install @tanstack/react-query
+
+# ============ MAP DEPENDENCIES ============
+
+# Leaflet (cartes interactives)
+npm install leaflet react-leaflet
+
+# Dessin de polygones
+npm install leaflet-draw
+npm install @types/leaflet-draw  # Si TypeScript
+
+# Alternative : Mapbox (payant mais plus beau)
+# npm install mapbox-gl react-map-gl
+
+# ============ CHARTS DEPENDENCIES ============
+
+# Recharts (graphiques)
+npm install recharts
+
+# Alternative : Chart.js
+# npm install react-chartjs-2 chart.js
+
+# ============ UI/STYLING DEPENDENCIES ============
+
+# Tailwind CSS
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+
+# Icons
+npm install lucide-react  # Icônes modernes
+
+# Date manipulation
+npm install date-fns
+
+# Forms & Validation
+npm install react-hook-form
+npm install zod  # Schéma validation
+
+# ============ UTILS ============
+
+# GeoJSON manipulation
+npm install @turf/turf
+
+# PDF generation (côté client)
+npm install jspdf  # Optionnel si backend génère PDF
+
+# File download helper
+npm install file-saver
+
+
+
+
+
+
+agriculture-monitoring-frontend/
+│
+├── public/                              # 🌐 Assets statiques
+│   ├── favicon.ico
+│   ├── logo.png
+│   └── manifest.json                    # PWA config (optionnel)
+│
+├── src/                                 # 📦 Code source
+│   │
+│   ├── assets/                          # 🎨 Resources (images, icons, fonts)
+│   │   ├── images/
+│   │   │   ├── hero-bg.jpg
+│   │   │   ├── empty-state.svg
+│   │   │   └── ndvi-legend.png
+│   │   ├── icons/
+│   │   │   └── marker-icons.png
+│   │   └── fonts/
+│   │
+│   ├── components/                      # 🧩 Composants réutilisables
+│   │   │
+│   │   ├── common/                      # Composants génériques
+│   │   │   ├── Button.jsx
+│   │   │   ├── Input.jsx
+│   │   │   ├── Card.jsx
+│   │   │   ├── Modal.jsx
+│   │   │   ├── Spinner.jsx
+│   │   │   ├── Alert.jsx
+│   │   │   └── DateRangePicker.jsx
+│   │   │
+│   │   ├── layout/                      # Structure de l'app
+│   │   │   ├── Navbar.jsx               # Barre navigation (logo, user menu)
+│   │   │   ├── Sidebar.jsx              # Menu latéral (parcelles, alertes)
+│   │   │   ├── Footer.jsx
+│   │   │   └── AuthLayout.jsx           # Layout pages auth (login/register)
+│   │   │
+│   │   ├── map/                         # 🗺️ Composants cartographiques
+│   │   │   ├── MapContainer.jsx         # Wrapper Leaflet/Mapbox
+│   │   │   ├── ParcelLayer.jsx          # Affichage polygones parcelles
+│   │   │   ├── NDVIOverlay.jsx          # Couche NDVI colorée
+│   │   │   ├── DrawControl.jsx          # Outil dessin polygone
+│   │   │   ├── MapLegend.jsx            # Légende couleurs (vert→rouge)
+│   │   │   └── MapControls.jsx          # Zoom, layers switcher
+│   │   │
+│   │   ├── charts/                      # 📊 Composants graphiques
+│   │   │   ├── NDVITimeSeries.jsx       # Courbe NDVI temporelle
+│   │   │   ├── NDWITimeSeries.jsx
+│   │   │   ├── ComparisonChart.jsx      # Comparaison multi-parcelles
+│   │   │   └── StatisticsCard.jsx       # Cartes stats (min/max/avg)
+│   │   │
+│   │   ├── parcels/                     # 🌾 Composants parcelles
+│   │   │   ├── ParcelList.jsx           # Liste toutes parcelles
+│   │   │   ├── ParcelCard.jsx           # Card preview parcelle
+│   │   │   ├── ParcelForm.jsx           # Formulaire création/édition
+│   │   │   ├── ParcelDetails.jsx        # Vue détaillée parcelle
+│   │   │   └── ParcelSearch.jsx         # Barre recherche parcelles
+│   │   │
+│   │   ├── alerts/                      # 🚨 Composants alertes
+│   │   │   ├── AlertList.jsx            # Liste alertes
+│   │   │   ├── AlertCard.jsx            # Card alerte individuelle
+│   │   │   ├── AlertBadge.jsx           # Badge nombre alertes
+│   │   │   └── AlertSettings.jsx        # Config seuils alertes
+│   │   │
+│   │   └── reports/                     # 📄 Composants rapports
+│   │       ├── ReportGenerator.jsx      # Form génération PDF
+│   │       ├── ReportPreview.jsx        # Preview avant download
+│   │       └── ExportButton.jsx         # Boutons export CSV/PDF
+│   │
+│   ├── pages/                           # 📄 Pages (routes principales)
+│   │   ├── auth/
+│   │   │   ├── Login.jsx                # Page connexion Google OAuth
+│   │   │   └── AuthCallback.jsx         # Redirection après OAuth
+│   │   │
+│   │   ├── Dashboard.jsx                # 🏠 Page accueil (overview)
+│   │   ├── Parcels.jsx                  # Liste toutes parcelles
+│   │   ├── ParcelDetail.jsx             # Détail parcelle + carte + graphs
+│   │   ├── AddParcel.jsx                # Page ajout nouvelle parcelle
+│   │   ├── Alerts.jsx                   # Page toutes alertes
+│   │   ├── Reports.jsx                  # Page génération rapports
+│   │   ├── Profile.jsx                  # Profil utilisateur
+│   │   └── NotFound.jsx                 # 404 page
+│   │
+│   ├── services/                        # 🔧 Services (API calls)
+│   │   ├── api.js                       # Config Axios instance
+│   │   ├── authService.js               # Login, logout, getUser
+│   │   ├── parcelService.js             # CRUD parcelles
+│   │   ├── satelliteService.js          # Fetch NDVI/NDWI data
+│   │   ├── alertService.js              # Fetch alertes
+│   │   └── reportService.js             # Generate & download reports
+│   │
+│   ├── hooks/                           # 🪝 Custom React Hooks
+│   │   ├── useAuth.js                   # Hook gestion auth (login status)
+│   │   ├── useParcels.js                # Hook fetch parcelles
+│   │   ├── useNDVI.js                   # Hook fetch série NDVI
+│   │   ├── useAlerts.js                 # Hook fetch alertes
+│   │   └── useMap.js                    # Hook état carte (zoom, center)
+│   │
+│   ├── context/                         # 🌐 React Context (state global)
+│   │   ├── AuthContext.jsx              # Context user authentifié
+│   │   ├── ParcelContext.jsx            # Context parcelle sélectionnée
+│   │   └── ThemeContext.jsx             # Context dark/light mode (optionnel)
+│   │
+│   ├── utils/                           # 🧰 Fonctions utilitaires
+│   │   ├── dateFormatter.js             # Format dates (DD/MM/YYYY)
+│   │   ├── colorScale.js                # Calcul couleur selon NDVI
+│   │   ├── geoUtils.js                  # Calculs géométriques (area, centroid)
+│   │   ├── validators.js                # Validation formulaires
+│   │   └── constants.js                 # Constantes (API_URL, NDVI_THRESHOLDS)
+│   │
+│   ├── styles/                          # 🎨 Styles globaux
+│   │   ├── index.css                    # Styles base + Tailwind imports
+│   │   ├── variables.css                # Variables CSS (couleurs, spacing)
+│   │   └── map.css                      # Styles spécifiques Leaflet
+│   │
+│   ├── routes/                          # 🛣️ Configuration routing
+│   │   ├── PrivateRoute.jsx             # HOC protection routes privées
+│   │   └── AppRoutes.jsx                # Définition toutes routes
+│   │
+│   ├── App.jsx                          # 🚀 Composant racine
+│   ├── main.jsx                         # 🎬 Point d'entrée React
+│   └── vite-env.d.ts                    # Types Vite (si TypeScript)
+│
+├── .env.example                         # 🔐 Template variables env
+├── .env.local                           # 🔐 Variables réelles (GITIGNORE!)
+├── .gitignore
+├── package.json                         # 📦 Dépendances npm
+├── vite.config.js                       # ⚙️ Config Vite
+├── tailwind.config.js                   # 🎨 Config Tailwind CSS
+├── postcss.config.js                    # PostCSS config
+├── index.html                           # 🏠 HTML entry point
+└── README.md
