@@ -2,6 +2,8 @@ export interface AnalyticsPoint {
   date: string;
   ndvi: number | null;
   ndwi: number | null;
+  precip?: number | null;
+  temp?: number | null;
 }
 
 export interface ParcelleGeometry {
@@ -14,6 +16,8 @@ export interface Parcelle {
   nom: string;
   proprietaire: string;
   cultureType?: string;
+  datePlantation?: string;
+  status?: "ok" | "warning" | "critical";
   surface?: number;
   geometry: ParcelleGeometry;
   ndviMoyen?: number;
@@ -28,6 +32,20 @@ export interface ParcelleDetails {
 }
 
 export type CropStatus = "good" | "medium" | "stressed" | "unknown";
+
+export interface AlertItem {
+  _id: string;
+  parcelleId: {
+    _id: string;
+    nom: string;
+    status: "ok" | "warning" | "critical";
+  };
+  type: "Stress Hydrique" | "Santé" | "Mise à jour";
+  valeurIndice: number;
+  rapport?: string;
+  date: string;
+  isRead: boolean;
+}
 
 export const getCropStatus = (ndvi?: number | null): CropStatus => {
   if (ndvi == null || isNaN(ndvi)) return "unknown";

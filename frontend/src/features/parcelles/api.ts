@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { Parcelle, ParcelleDetails, ParcelleGeometry } from "./types";
+import type { AlertItem, AnalyticsPoint, Parcelle, ParcelleDetails, ParcelleGeometry } from "./types";
 
 // Configurez VITE_API_URL dans .env.local pour pointer vers votre backend.
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
@@ -9,10 +9,21 @@ const client = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+const alertsClient = axios.create({
+  baseURL: `${API_BASE}/api/alertes`,
+  headers: { "Content-Type": "application/json" },
+});
+
+const pushClient = axios.create({
+  baseURL: `${API_BASE}/api/push`,
+  headers: { "Content-Type": "application/json" },
+});
+
 export interface CreateParcellePayload {
   nom: string;
   proprietaire: string;
   cultureType?: string;
+  datePlantation?: string;
   surface?: number;
   geometry: ParcelleGeometry;
 }
@@ -28,7 +39,7 @@ export const parcellesApi = {
   },
   create: async (payload: CreateParcellePayload) => {
     const { data } = await client.post("/", payload);
-    return data as { success: boolean; info: Parcelle; analytics: any[]; ndviMoyen: number; ndwiMoyen: number };
+    return data as { success: boolean; info: Parcelle; analytics: AnalyticsPoint[]; ndviMoyen: number; ndwiMoyen: number };
   },
   update: async (id: string, payload: Partial<CreateParcellePayload>) => {
     const { data } = await client.put(`/${id}`, payload);
@@ -38,4 +49,45 @@ export const parcellesApi = {
     const { data } = await client.delete(`/${id}`);
     return data;
   },
+  analyzeStress: async (id: string) => {
+    const { data } = await client.post(`/${id}/analyze-stress`);
+    return data;
+  },
 };
+
+export const alertsApi = {
+  list: async (): Promise<AlertItem[]> => {
+    const { data } = await alertsClient.get<AlertItem[]>("/");
+    return data;
+  },
+  markRead: async (id: string): Promise<AlertItem> => {
+    const { data } = await alertsClient.patch<AlertItem>(`/${id}/read`);
+    return data;
+  },
+  remove: async (id: string) => {
+    const { data } = await alertsClient.delete(`/${id}`);
+    return data as { success: boolean };
+  },
+  clearRead: async () => {
+    const { data } = await alertsClient.delete("/", { params: { mode: "read" } });
+    return data as { success: boolean; deletedCount: number };
+  },
+  clearAll: async () => {
+    const { data } = await alertsClient.delete("/", { params: { mode: "all" } });
+    return data as { success: boolean; deletedCount: number };
+  },
+};
+
+export const pushApi = {
+  subscribe: async (subscription: PushSubscriptionJSON) => {
+    const { data } = await pushClient.post("/subscribe", subscription);
+    return data;
+  },
+  unsubscribe: async (endpoint: string) => {
+    const { data } = await pushClient.post("/unsubscribe", { endpoint });
+    return data;
+  },
+};
+
+export const getVapidPublicKey = () =>
+  import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;

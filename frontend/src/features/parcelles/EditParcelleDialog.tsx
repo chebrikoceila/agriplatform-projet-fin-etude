@@ -4,17 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import { formatHa, polygonAreaHa } from "./utils";
-import type { ParcelleGeometry } from "./types";
+import type { Parcelle } from "./types";
 
 interface Props {
   open: boolean;
-  geometry: ParcelleGeometry | null;
+  parcelle: Parcelle | null;
   onCancel: () => void;
-  onConfirm: (data: { nom: string; cultureType: string; proprietaire: string; datePlantation: string }) => Promise<void>;
+  onConfirm: (id: string, data: Partial<Parcelle>) => Promise<void>;
 }
 
-export const CreateParcelleDialog = ({ open, geometry, onCancel, onConfirm }: Props) => {
+export const EditParcelleDialog = ({ open, parcelle, onCancel, onConfirm }: Props) => {
   const [nom, setNom] = useState("");
   const [cultureType, setCultureType] = useState("");
   const [datePlantation, setDatePlantation] = useState("");
@@ -22,21 +21,25 @@ export const CreateParcelleDialog = ({ open, geometry, onCancel, onConfirm }: Pr
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      setNom("");
-      setCultureType("");
-      setDatePlantation("");
-      setProprietaire("");
+    if (open && parcelle) {
+      setNom(parcelle.nom || "");
+      setCultureType(parcelle.cultureType || "");
+      setDatePlantation(parcelle.datePlantation || "");
+      setProprietaire(parcelle.proprietaire || "");
     }
-  }, [open]);
-
-  const surface = geometry ? polygonAreaHa(geometry) : 0;
+  }, [open, parcelle]);
 
   const handleSubmit = async () => {
-    if (!nom.trim() || !proprietaire.trim()) return;
+    if (!parcelle || !nom.trim() || !proprietaire.trim()) return;
     setSubmitting(true);
     try {
-      await onConfirm({ nom: nom.trim(), cultureType: cultureType.trim(), proprietaire: proprietaire.trim(), datePlantation });
+      await onConfirm(parcelle._id, {
+        nom: nom.trim(),
+        cultureType: cultureType.trim(),
+        proprietaire: proprietaire.trim(),
+        datePlantation,
+      });
+      onCancel();
     } finally {
       setSubmitting(false);
     }
@@ -46,29 +49,28 @@ export const CreateParcelleDialog = ({ open, geometry, onCancel, onConfirm }: Pr
     <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Nouvelle parcelle</DialogTitle>
+          <DialogTitle>Modifier la parcelle</DialogTitle>
           <DialogDescription>
-            Surface estimée : <span className="font-medium text-foreground">{formatHa(surface)}</span>.
-            Le calcul des indices (NDVI / NDWI) démarrera automatiquement.
+            Mettez à jour les informations de la parcelle.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="nom">Nom de la parcelle</Label>
-            <Input id="nom" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Champ Nord 1" autoFocus />
+            <Label htmlFor="edit-nom">Nom de la parcelle</Label>
+            <Input id="edit-nom" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Champ Nord 1" autoFocus />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="culture">Type de culture</Label>
-            <Input id="culture" value={cultureType} onChange={(e) => setCultureType(e.target.value)} placeholder="Blé tendre, Olivier…" />
+            <Label htmlFor="edit-culture">Type de culture</Label>
+            <Input id="edit-culture" value={cultureType} onChange={(e) => setCultureType(e.target.value)} placeholder="Blé tendre, Olivier…" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="datePlantation">Date de semis / plantation</Label>
-            <Input id="datePlantation" type="date" value={datePlantation} onChange={(e) => setDatePlantation(e.target.value)} />
+            <Label htmlFor="edit-datePlantation">Date de semis / plantation</Label>
+            <Input id="edit-datePlantation" type="date" value={datePlantation} onChange={(e) => setDatePlantation(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="proprio">Propriétaire</Label>
-            <Input id="proprio" value={proprietaire} onChange={(e) => setProprietaire(e.target.value)} placeholder="Nom du propriétaire" />
+            <Label htmlFor="edit-proprio">Propriétaire</Label>
+            <Input id="edit-proprio" value={proprietaire} onChange={(e) => setProprietaire(e.target.value)} placeholder="Nom du propriétaire" />
           </div>
         </div>
 

@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef } from "react";
+import { Fragment, useCallback, useEffect, useRef } from "react";
 import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
-import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON, useMap, CircleMarker, Popup } from "react-leaflet";
 import type { Parcelle, ParcelleGeometry } from "./types";
 import { getCropStatus } from "./types";
 
@@ -13,13 +13,29 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-const statusColor = (ndvi?: number) => {
-  const s = getCropStatus(ndvi);
-  switch (s) {
-    case "good": return "#22c55e"; // vert
-    case "medium": return "#f59e0b"; // orange
-    case "stressed": return "#ef4444"; // rouge (terre sèche)
-    default: return "#94a3b8"; // gris
+const isUrbanOrBuilding = (cultureType?: string) => {
+  if (!cultureType) return false;
+  const normalized = cultureType.toLowerCase();
+  return ["ville", "urbain", "urbaine", "batiment", "bâtiment", "construction"].some((token) =>
+    normalized.includes(token),
+  );
+};
+
+const getParcelleHealthColor = (parcelle: Parcelle) => {
+  if (parcelle.status === "critical") return "#dc2626"; // rouge
+  if (isUrbanOrBuilding(parcelle.cultureType)) return "#dc2626"; // zone non cultivée
+  const cropStatus = getCropStatus(parcelle.ndviMoyen);
+  if (cropStatus === "stressed") return "#dc2626";
+  return "#16a34a"; // vert cultivé
+};
+
+const getParcelleCenter = (geometry: ParcelleGeometry): [number, number] | null => {
+  try {
+    const layer = L.geoJSON(geometry as any);
+    const center = layer.getBounds().getCenter();
+    return [center.lat, center.lng];
+  } catch {
+    return null;
   }
 };
 
@@ -159,7 +175,8 @@ export const ParcelleMap = ({
 
   {parcelles.map((p) => {
   const isSelected = p._id === selectedId;
-  const baseColor = statusColor(p.ndviMoyen);
+  const baseColor = getParcelleHealthColor(p);
+  const center = getParcelleCenter(p.geometry);
   const baseStyle = {
     color: baseColor,
     weight: isSelected ? 3.5 : 2,
@@ -168,17 +185,47 @@ export const ParcelleMap = ({
     dashArray: isSelected ? undefined : "4 4",
   };
   return (
-    <GeoJSON
-      key={p._id}
-      data={p.geometry as any}
-      style={() => baseStyle}
-      eventHandlers={{
-        click: () => onSelect(p._id),
-        add: (e) => { (e.target as L.Path).setStyle(baseStyle); },
-        mouseover: (e) => { (e.target as L.Path).setStyle({ fillOpacity: 0.45, weight: 3 }); },
-        mouseout: (e) => { (e.target as L.Path).setStyle(baseStyle); },
-      }}
-    />
+    <Fragment key={`${p._id}-group`}>
+      <GeoJSON
+        key={`${p._id}-polygon`}
+        data={p.geometry as any}
+        style={() => baseStyle}
+        onEachFeature={(_, layer) => {
+          layer.bindTooltip(p.nom, {
+            sticky: true,
+            direction: "top",
+            className: "parcelle-label-tooltip",
+          });
+        }}
+        eventHandlers={{
+          click: () => onSelect(p._id),
+          add: (e) => { (e.target as L.Path).setStyle(baseStyle); },
+          mouseover: (e) => { (e.target as L.Path).setStyle({ fillOpacity: 0.45, weight: 3 }); },
+          mouseout: (e) => { (e.target as L.Path).setStyle(baseStyle); },
+        }}
+      />
+      {center && (
+        <CircleMarker
+          key={`${p._id}-point`}
+          center={center}
+          radius={isSelected ? 8 : 6}
+          pathOptions={{
+            color: "#ffffff",
+            weight: 2,
+            fillColor: baseColor,
+            fillOpacity: 1,
+          }}
+          eventHandlers={{ click: () => onSelect(p._id) }}
+        >
+          <Popup>
+            <div className="text-sm">
+              <div className="font-semibold">{p.nom}</div>
+              <div>Repère de parcelle</div>
+            </div>
+          </Popup>
+        </CircleMarker>
+      )}
+    </Fragment>
   );
 })}
     </MapContainer>

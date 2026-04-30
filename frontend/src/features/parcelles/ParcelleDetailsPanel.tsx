@@ -33,6 +33,9 @@ export const ParcelleDetailsPanel = ({ details, loading, onClose }: Props) => {
     : details?.info.ndwiMoyen;
 
   const surface = details?.info.surface ?? (details ? polygonAreaHa(details.info.geometry) : 0);
+  const periodText = details?.info.datePlantation 
+    ? `Depuis le ${formatDate(details.info.datePlantation)}` 
+    : "6 derniers mois";
 
   const handleDownloadPdf = async () => {
     if (!details) return;
@@ -83,7 +86,7 @@ export const ParcelleDetailsPanel = ({ details, loading, onClose }: Props) => {
         
         pdf.setFontSize(14);
         pdf.setTextColor(40, 40, 40);
-        pdf.text("Évolution Temporelle (6 derniers mois)", 14, finalY + 15);
+        pdf.text(`Évolution Temporelle (${periodText})`, 14, finalY + 15);
         
         const pdfWidth = pdf.internal.pageSize.getWidth() - 28;
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
@@ -203,7 +206,7 @@ export const ParcelleDetailsPanel = ({ details, loading, onClose }: Props) => {
                   <h3 className="text-sm font-semibold tracking-tight">
                     Évolution temporelle
                   </h3>
-                  <span className="text-xs text-muted-foreground">6 derniers mois</span>
+                  <span className="text-xs text-muted-foreground">{periodText}</span>
                 </div>
                 <div id="pdf-chart-container" className="bg-card pb-2">
                   <NdviChart data={details.analytics ?? []} />

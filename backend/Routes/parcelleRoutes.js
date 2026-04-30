@@ -5,6 +5,7 @@ const parcelleCtrl = require('../controller/parcelleController');
 router.post('/', parcelleCtrl.createParcelle);
 router.get('/', parcelleCtrl.getAllParcelles);
 router.get('/:id', parcelleCtrl.getParcelleDetails);
+router.post('/:id/analyze-stress', parcelleCtrl.analyzeParcelleStress);
 router.put('/:id', parcelleCtrl.updateParcelle);
 router.delete('/:id', parcelleCtrl.deleteParcelle);
 

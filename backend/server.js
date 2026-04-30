@@ -2,8 +2,12 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const connectDB = require('./config/db')
-const parcelleRoutes = require('./routes/parcelleRoutes');
+const parcelleRoutes = require('./Routes/parcelleRoutes');
+const alertRoutes = require('./Routes/alertRoutes');
+const pushRoutes = require('./Routes/pushRoutes');
 const initializeGEE = require('./services/geeAuth');
+const { configureWebPush } = require('./services/pushService');
+const { startStressWorker } = require('./services/stressWorker');
 require('dotenv').config();
 
 const app = express();
@@ -14,9 +18,12 @@ app.use(express.json());
 
 // Routes de test
 initializeGEE();
+configureWebPush();
 
 // Routes
 app.use('/api/parcelles', parcelleRoutes);
+app.use('/api/alertes', alertRoutes);
+app.use('/api/push', pushRoutes);
 
 // Route de santé
 app.get('/api/health', (req, res) => {
@@ -40,6 +47,7 @@ const startServer = async () => {
       console.log(`Serveur démarré sur http://localhost:${PORT}`);
       console.log(`Documentation tests : http://localhost:${PORT}/api/test`);
     });
+    startStressWorker();
   } catch (error) {
     console.error('Erreur lors du démarrage:', error);
     process.exit(1);

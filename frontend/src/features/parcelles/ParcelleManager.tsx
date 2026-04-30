@@ -1,22 +1,27 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ParcelleSidebar } from "./ParcelleSidebar";
 import { ParcelleMap } from "./ParcelleMap";
 import { ParcelleDetailsPanel } from "./ParcelleDetailsPanel";
 import { CreateParcelleDialog } from "./CreateParcelleDialog";
+import { EditParcelleDialog } from "./EditParcelleDialog";
 import { parcellesApi } from "./api";
 import type { Parcelle, ParcelleDetails, ParcelleGeometry } from "./types";
 import { polygonAreaHa } from "./utils";
 
 export const ParcelleManager = () => {
+  const navigate = useNavigate();
   const [parcelles, setParcelles] = useState<Parcelle[]>([]);
   const [loadingList, setLoadingList] = useState(false);
+  const [showList, setShowList] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [details, setDetails] = useState<ParcelleDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
   const [drawing, setDrawing] = useState(false);
   const [pendingGeom, setPendingGeom] = useState<ParcelleGeometry | null>(null);
+  const [editingParcelle, setEditingParcelle] = useState<Parcelle | null>(null);
 
   const fetchList = useCallback(async () => {
     setLoadingList(true);
@@ -32,7 +37,10 @@ export const ParcelleManager = () => {
     }
   }, []);
 
-  useEffect(() => { fetchList(); }, [fetchList]);
+  const handleShowList = () => {
+    setShowList(true);
+    fetchList();
+  };
 
   // Load details on select
   useEffect(() => {
@@ -53,7 +61,7 @@ export const ParcelleManager = () => {
     setPendingGeom(geom);
   };
 
-  const handleConfirmCreate = async (data: { nom: string; cultureType: string; proprietaire: string }) => {
+  const handleConfirmCreate = async (data: { nom: string; cultureType: string; proprietaire: string; datePlantation: string }) => {
     if (!pendingGeom) return;
     try {
       const surface = polygonAreaHa(pendingGeom);
@@ -64,21 +72,21 @@ export const ParcelleManager = () => {
       });
       toast.success("Parcelle créée", { description: "Calcul NDVI / NDWI lancé." });
       setPendingGeom(null);
-      await fetchList();
+      if (showList) await fetchList();
       if (res?.info?._id) setSelectedId(res.info._id);
     } catch (err: any) {
       toast.error("Création impossible", { description: err?.response?.data?.error ?? err?.message });
     }
   };
 
-  const handleRename = async (id: string, nom: string) => {
+  const handleEdit = async (id: string, data: Partial<Parcelle>) => {
     try {
-      await parcellesApi.update(id, { nom });
-      toast.success("Parcelle renommée");
-      setParcelles((prev) => prev.map((p) => (p._id === id ? { ...p, nom } : p)));
-      if (details?.info._id === id) setDetails({ ...details, info: { ...details.info, nom } });
+      await parcellesApi.update(id, data);
+      toast.success("Parcelle modifiée");
+      setParcelles((prev) => prev.map((p) => (p._id === id ? { ...p, ...data } : p)));
+      if (details?.info._id === id) setDetails({ ...details, info: { ...details.info, ...data } });
     } catch (err: any) {
-      toast.error("Renommage impossible", { description: err?.message });
+      toast.error("Modification impossible", { description: err?.message });
     }
   };
 
@@ -103,8 +111,10 @@ export const ParcelleManager = () => {
         onSelect={setSelectedId}
         onStartDraw={() => setDrawing(true)}
         onCancelDraw={() => setDrawing(false)}
-        onRefresh={fetchList}
-        onRename={handleRename}
+        onRefresh={handleShowList}
+        onOpenAlerts={() => navigate("/alertes")}
+        showList={showList}
+        onEdit={(p) => setEditingParcelle(p)}
         onDelete={handleDelete}
       />
 
@@ -153,6 +163,13 @@ export const ParcelleManager = () => {
         geometry={pendingGeom}
         onCancel={() => setPendingGeom(null)}
         onConfirm={handleConfirmCreate}
+      />
+
+      <EditParcelleDialog
+        open={!!editingParcelle}
+        parcelle={editingParcelle}
+        onCancel={() => setEditingParcelle(null)}
+        onConfirm={handleEdit}
       />
     </div>
   );

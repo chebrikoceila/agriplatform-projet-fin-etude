@@ -9,9 +9,14 @@ exports.createParcelle = async (req, res) => {
 
         // LOGIQUE CROP MONITORING : Calculer les indices immédiatement après l'ajout
         const today = new Date().toISOString().split('T')[0];
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-        const startDate = sixMonthsAgo.toISOString().split('T')[0];
+        let startDate;
+        if (saved.datePlantation) {
+            startDate = new Date(saved.datePlantation).toISOString().split('T')[0];
+        } else {
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+            startDate = sixMonthsAgo.toISOString().split('T')[0];
+        }
 
         // On lance le calcul GEE
         const stats = await geeService.getNDVITimeSeries(saved.geometry, startDate, today);
@@ -47,11 +52,16 @@ exports.getParcelleDetails = async (req, res) => {
         const parcelle = await Parcelle.findById(req.params.id);
         if (!parcelle) return res.status(404).send("Parcelle non trouvée");
 
-        // On récupère les données NDVI des 6 derniers mois
+        // On récupère les données NDVI depuis la date de plantation (ou 6 mois)
         const today = new Date().toISOString().split('T')[0];
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-        const startDate = sixMonthsAgo.toISOString().split('T')[0];
+        let startDate;
+        if (parcelle.datePlantation) {
+            startDate = new Date(parcelle.datePlantation).toISOString().split('T')[0];
+        } else {
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+            startDate = sixMonthsAgo.toISOString().split('T')[0];
+        }
 
         const stats = await geeService.getNDVITimeSeries(parcelle.geometry, startDate, today);
 
@@ -66,6 +76,15 @@ exports.updateParcelle = async (req, res) => {
     const updated = await Parcelle.findByIdAndUpdate(req.params.id, req.body, { new: true });
     res.json(updated);
   } catch (err) { res.status(400).json({ error: err.message }); }
+};
+
+exports.analyzeParcelleStress = async (req, res) => {
+    try {
+        const result = await geeService.analyzeStress(req.params.id);
+        res.json(result);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
 };
 
 

@@ -1,4 +1,4 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import type { AnalyticsPoint } from "./types";
 
 interface Props {
@@ -12,6 +12,8 @@ export const NdviChart = ({ data }: Props) => {
       date: d.date,
       ndvi: d.ndvi != null ? Number(d.ndvi.toFixed(3)) : null,
       ndwi: d.ndwi != null ? Number(d.ndwi.toFixed(3)) : null,
+      precip: d.precip != null ? Number(d.precip.toFixed(1)) : null,
+      temp: d.temp != null ? Number(d.temp.toFixed(1)) : null,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -26,7 +28,7 @@ export const NdviChart = ({ data }: Props) => {
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={cleaned} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+        <ComposedChart data={cleaned} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis
             dataKey="date"
@@ -35,7 +37,14 @@ export const NdviChart = ({ data }: Props) => {
             stroke="hsl(var(--border))"
           />
           <YAxis
+            yAxisId="left"
             domain={[-0.2, 1]}
+            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+            stroke="hsl(var(--border))"
+          />
+          <YAxis
+            yAxisId="right"
+            orientation="right"
             tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
             stroke="hsl(var(--border))"
           />
@@ -49,7 +58,31 @@ export const NdviChart = ({ data }: Props) => {
             labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
           />
           <Legend wrapperStyle={{ fontSize: 12, paddingTop: 4 }} />
+          
+          <Bar
+            yAxisId="right"
+            dataKey="precip"
+            name="Pluie (mm)"
+            fill="#3b82f6"
+            barSize={10}
+            opacity={0.6}
+          />
+          
           <Line
+            yAxisId="right"
+            type="monotone"
+            dataKey="temp"
+            name="Temp (°C)"
+            stroke="#ef4444"
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 4 }}
+            connectNulls
+            strokeDasharray="5 5"
+          />
+
+          <Line
+            yAxisId="left"
             type="monotone"
             dataKey="ndvi"
             name="NDVI"
@@ -60,6 +93,7 @@ export const NdviChart = ({ data }: Props) => {
             connectNulls
           />
           <Line
+            yAxisId="left"
             type="monotone"
             dataKey="ndwi"
             name="NDWI"
@@ -69,7 +103,7 @@ export const NdviChart = ({ data }: Props) => {
             activeDot={{ r: 5 }}
             connectNulls
           />
-        </LineChart>
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   );
