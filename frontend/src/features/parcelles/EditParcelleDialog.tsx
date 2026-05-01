@@ -19,12 +19,20 @@ export const EditParcelleDialog = ({ open, parcelle, onCancel, onConfirm }: Prop
   const [datePlantation, setDatePlantation] = useState("");
   const [proprietaire, setProprietaire] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  const toDateInput = (raw?: string) => {
+    if (!raw) return "";
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return "";
+    return parsed.toISOString().slice(0, 10);
+  };
 
   useEffect(() => {
     if (open && parcelle) {
       setNom(parcelle.nom || "");
       setCultureType(parcelle.cultureType || "");
-      setDatePlantation(parcelle.datePlantation || "");
+      setDatePlantation(toDateInput(parcelle.datePlantation));
       setProprietaire(parcelle.proprietaire || "");
     }
   }, [open, parcelle]);
@@ -66,7 +74,13 @@ export const EditParcelleDialog = ({ open, parcelle, onCancel, onConfirm }: Prop
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="edit-datePlantation">Date de semis / plantation</Label>
-            <Input id="edit-datePlantation" type="date" value={datePlantation} onChange={(e) => setDatePlantation(e.target.value)} />
+            <Input
+              id="edit-datePlantation"
+              type="date"
+              max={todayIso}
+              value={datePlantation}
+              onChange={(e) => setDatePlantation(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="edit-proprio">Propriétaire</Label>

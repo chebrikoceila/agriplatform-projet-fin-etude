@@ -2,10 +2,42 @@ const ee = require('@google/earthengine');
 const Parcelle = require('../models/Parcel');
 const Alerte = require('../models/Alert');
 const { sendAlertNotification, sendCriticalAlertNotification } = require('./pushService');
+const { getParcelleWeather } = require('./weatherService');
 
 const toPercent = (value) => `${(value * 100).toFixed(1)}%`;
 const INDICES_STABILITY_THRESHOLD = Number(process.env.INDICES_STABILITY_THRESHOLD || 0.05);
 const INDICES_DEGRADATION_THRESHOLD = Number(process.env.INDICES_DEGRADATION_THRESHOLD || 0.1);
+const DEFAULT_HISTORY_DAYS = 180;
+
+const toDateOnly = (value) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    parsed.setHours(0, 0, 0, 0);
+    return parsed;
+};
+
+const normalizeDateRange = (startDate, endDate) => {
+    const parsedEnd = toDateOnly(endDate) || toDateOnly(new Date());
+    const parsedStart = toDateOnly(startDate) || (() => {
+        const fallback = new Date(parsedEnd);
+        fallback.setDate(fallback.getDate() - DEFAULT_HISTORY_DAYS);
+        return fallback;
+    })();
+
+    let normalizedStart = parsedStart;
+    let normalizedEnd = parsedEnd;
+
+    if (normalizedEnd <= normalizedStart) {
+        normalizedEnd = new Date(normalizedStart);
+        normalizedEnd.setDate(normalizedEnd.getDate() + 1);
+    }
+
+    return {
+        start: normalizedStart.toISOString().slice(0, 10),
+        end: normalizedEnd.toISOString().slice(0, 10)
+    };
+};
 
 const parseCaptureDate = (rawDate) => {
     if (!rawDate) return null;
@@ -37,6 +69,7 @@ const buildIndicesReport = (current, previous) => {
 
 const getNDVITimeSeries = (geometry, startDate, endDate) => {
     return new Promise((resolve, reject) => {
+        const normalizedRange = normalizeDateRange(startDate, endDate);
         const polygon = ee.Geometry.Polygon(geometry.coordinates);
         
         // 1. Masquage des nuages pour Sentinel-2
@@ -54,7 +87,7 @@ const getNDVITimeSeries = (geometry, startDate, endDate) => {
         // Collection Sentinel-2 (Harmonized = plus précise/récente)
         const s2Collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
             .filterBounds(polygon)
-            .filterDate(startDate, endDate)
+            .filterDate(normalizedRange.start, normalizedRange.end)
             .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 60)) // On est plus tolérant car on masque pixel par pixel
             .map(maskS2clouds);
 
@@ -79,7 +112,7 @@ const getNDVITimeSeries = (geometry, startDate, endDate) => {
         // 2. Collection Météo (ERA5 Land Daily)
         const weatherCollection = ee.ImageCollection('ECMWF/ERA5_LAND/DAILY_AGGR')
             .filterBounds(polygon)
-            .filterDate(startDate, endDate);
+            .filterDate(normalizedRange.start, normalizedRange.end);
 
         const weatherSeries = weatherCollection.map(image => {
             // Précipitations : on passe de mètres à millimètres (* 1000)
@@ -185,6 +218,27 @@ const getLatestSentinelCaptures = (geometry, limit = 2) => {
     });
 };
 
+const getLatestSentinelImageDate = (geometry, lookbackDays = 90) => {
+    return new Promise((resolve, reject) => {
+        const polygon = ee.Geometry.Polygon(geometry.coordinates);
+
+        const collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+            .filterBounds(polygon)
+            .filterDate(ee.Date(Date.now()).advance(-lookbackDays, 'day'), ee.Date(Date.now()))
+            .sort('system:time_start', false)
+            .limit(1);
+
+        collection.toList(1).getInfo((data, err) => {
+            if (err) return reject(err);
+            if (!data || data.length === 0) return resolve(null);
+            const image = data[0];
+            const millis = image?.properties?.['system:time_start'];
+            if (!millis) return resolve(null);
+            resolve(new Date(millis).toISOString().slice(0, 10));
+        });
+    });
+};
+
 const analyzeStress = async (parcelleId) => {
     const parcelle = await Parcelle.findById(parcelleId);
     if (!parcelle) throw new Error('Parcelle introuvable');
@@ -195,6 +249,7 @@ const analyzeStress = async (parcelleId) => {
     }
 
     const [current, previous] = captures;
+    const meteo = await getParcelleWeather(parcelle.geometry).catch(() => null);
     const currentCaptureDate = parseCaptureDate(current.date) || new Date();
     const currentCaptureDateKey = currentCaptureDate.toISOString().slice(0, 10);
     const isNewCapture = !parcelle.lastAnalyzedCaptureDate
@@ -256,6 +311,56 @@ const analyzeStress = async (parcelleId) => {
         nextStatus = nextStatus === 'critical' ? 'critical' : 'warning';
     }
 
+    const thermalStress = meteo?.currentDay?.tempMax != null
+        && meteo.currentDay.tempMax > 38
+        && (current.ndvi - previous.ndvi) <= -0.08;
+    if (thermalStress) {
+        const alert = await Alerte.create({
+            parcelleId: parcelle._id,
+            type: 'Santé',
+            valeurIndice: current.ndvi,
+            rapport: `Stress thermique probable: NDVI en baisse (${previous.ndvi.toFixed(3)} -> ${current.ndvi.toFixed(3)}) avec Tmax ${meteo.currentDay.tempMax.toFixed(1)}°C.`,
+            date: currentCaptureDate,
+            isRead: false
+        });
+        createdAlerts.push(alert);
+        criticalAlerts.push(alert);
+        nextStatus = 'critical';
+    }
+
+    const forecastPrecip = (meteo?.next5Days || []).reduce((sum, day) => sum + (day.precipMm || 0), 0);
+    const urgentIrrigation = current.ndwi < 0.2
+        && (meteo?.currentDay?.etp || 0) >= 4.5
+        && forecastPrecip < 1;
+    if (urgentIrrigation) {
+        const alert = await Alerte.create({
+            parcelleId: parcelle._id,
+            type: 'Stress Hydrique',
+            valeurIndice: current.ndwi,
+            rapport: `Irrigation urgente: NDWI ${current.ndwi.toFixed(3)}, ETP ${meteo.currentDay.etp.toFixed(1)} mm/j, pluie prévue 5j ${forecastPrecip.toFixed(1)} mm.`,
+            date: currentCaptureDate,
+            isRead: false
+        });
+        createdAlerts.push(alert);
+        criticalAlerts.push(alert);
+        nextStatus = 'critical';
+    }
+
+    const fungalRisk = (meteo?.currentDay?.humidity || 0) > 80
+        && (meteo?.currentDay?.tempMax || 0) >= 15
+        && (meteo?.currentDay?.tempMax || 0) <= 30;
+    if (fungalRisk) {
+        const alert = await Alerte.create({
+            parcelleId: parcelle._id,
+            type: 'Santé',
+            valeurIndice: current.ndvi,
+            rapport: `Risque fongique: humidité ${meteo.currentDay.humidity.toFixed(0)}% et température favorable (${meteo.currentDay.tempMin?.toFixed?.(1) ?? '--'}-${meteo.currentDay.tempMax.toFixed(1)}°C).`,
+            date: currentCaptureDate,
+            isRead: false
+        });
+        createdAlerts.push(alert);
+    }
+
     if (!ndviCritical && !ndwiCritical && (current.ndvi < 0.45 || current.ndwi < 0.2)) {
         nextStatus = 'warning';
     }
@@ -290,4 +395,4 @@ const analyzeStress = async (parcelleId) => {
     };
 };
 
-module.exports = { getNDVITimeSeries, analyzeStress };
+module.exports = { getNDVITimeSeries, analyzeStress, getLatestSentinelImageDate };

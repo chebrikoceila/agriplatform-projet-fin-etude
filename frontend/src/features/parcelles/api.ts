@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { AlertItem, AnalyticsPoint, Parcelle, ParcelleDetails, ParcelleGeometry } from "./types";
+import type { AlertItem, AnalyticsPoint, Parcelle, ParcelleDetails, ParcelleGeometry, ParcelleMeteo } from "./types";
 
 // Configurez VITE_API_URL dans .env.local pour pointer vers votre backend.
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
@@ -11,6 +11,11 @@ const client = axios.create({
 
 const alertsClient = axios.create({
   baseURL: `${API_BASE}/api/alertes`,
+  headers: { "Content-Type": "application/json" },
+});
+
+const dashboardClient = axios.create({
+  baseURL: `${API_BASE}/api/dashboard`,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -56,8 +61,8 @@ export const parcellesApi = {
 };
 
 export const alertsApi = {
-  list: async (): Promise<AlertItem[]> => {
-    const { data } = await alertsClient.get<AlertItem[]>("/");
+  list: async (params?: { limit?: number; statut?: "active" }): Promise<AlertItem[]> => {
+    const { data } = await alertsClient.get<AlertItem[]>("/", { params });
     return data;
   },
   markRead: async (id: string): Promise<AlertItem> => {
@@ -76,6 +81,32 @@ export const alertsApi = {
     const { data } = await alertsClient.delete("/", { params: { mode: "all" } });
     return data as { success: boolean; deletedCount: number };
   },
+};
+
+export interface DashboardStats {
+  activeParcelles: number;
+  ndviGlobalAvg: number | null;
+  stressHydriqueCount: number;
+  activeAlertsCount: number;
+}
+
+export const dashboardApi = {
+  stats: async (): Promise<DashboardStats> => {
+    const { data } = await dashboardClient.get<DashboardStats>("/stats");
+    return data;
+  },
+};
+
+export const getParcelleSeries = async (id: string, debut: string, fin: string): Promise<AnalyticsPoint[]> => {
+  const { data } = await client.get<{ analytics: AnalyticsPoint[] }>(`/${id}/serie-temporelle`, {
+    params: { debut, fin },
+  });
+  return data.analytics ?? [];
+};
+
+export const getParcelleMeteo = async (id: string): Promise<ParcelleMeteo> => {
+  const { data } = await client.get<ParcelleMeteo>(`/${id}/meteo`);
+  return data;
 };
 
 export const pushApi = {

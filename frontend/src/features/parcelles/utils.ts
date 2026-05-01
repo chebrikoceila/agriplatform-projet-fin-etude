@@ -29,9 +29,11 @@ export const formatNumber = (n?: number | null, digits = 2) => {
   return n.toFixed(digits);
 };
 
-export const formatDate = (iso?: string) => {
+export const formatDate = (iso?: string | Date) => {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("fr-FR", {
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("fr-FR", {
     day: "2-digit", month: "short", year: "numeric",
   });
 };

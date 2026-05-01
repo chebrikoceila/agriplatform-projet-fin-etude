@@ -144,6 +144,7 @@ interface ParcelleMapProps {
   onSelect: (id: string) => void;
   drawing: boolean;
   onCreated: (geom: ParcelleGeometry) => void;
+  rainByParcelle?: Record<string, { rain7d?: number; dryDays?: number }>;
 }
 
 export const ParcelleMap = ({
@@ -152,6 +153,7 @@ export const ParcelleMap = ({
   onSelect,
   drawing,
   onCreated,
+  rainByParcelle = {},
 }: ParcelleMapProps) => {
   return (
     <MapContainer
@@ -191,7 +193,12 @@ export const ParcelleMap = ({
         data={p.geometry as any}
         style={() => baseStyle}
         onEachFeature={(_, layer) => {
-          layer.bindTooltip(p.nom, {
+          const rain = rainByParcelle[p._id]?.rain7d;
+          const dryDays = rainByParcelle[p._id]?.dryDays;
+          const ndwi = p.ndwiMoyen != null ? p.ndwiMoyen.toFixed(2) : "—";
+          const rainText = rain != null ? `${rain.toFixed(1)} mm/7j` : "pluie indisponible";
+          const dryText = dryDays != null ? ` · ${dryDays}j secs` : "";
+          layer.bindTooltip(`${p.nom} · NDWI ${ndwi} · ${rainText}${dryText}`, {
             sticky: true,
             direction: "top",
             className: "parcelle-label-tooltip",
@@ -220,7 +227,8 @@ export const ParcelleMap = ({
           <Popup>
             <div className="text-sm">
               <div className="font-semibold">{p.nom}</div>
-              <div>Repère de parcelle</div>
+              <div>NDWI: {p.ndwiMoyen != null ? p.ndwiMoyen.toFixed(2) : "—"}</div>
+              <div>Pluie 7j: {rainByParcelle[p._id]?.rain7d != null ? `${rainByParcelle[p._id].rain7d?.toFixed(1)} mm` : "—"}</div>
             </div>
           </Popup>
         </CircleMarker>

@@ -31,6 +31,7 @@ export const CreateParcelleDialog = ({ open, geometry, onCancel, onConfirm }: Pr
   }, [open]);
 
   const surface = geometry ? polygonAreaHa(geometry) : 0;
+  const todayIso = new Date().toISOString().slice(0, 10);
 
   const handleSubmit = async () => {
     if (!nom.trim() || !proprietaire.trim()) return;
@@ -64,7 +65,13 @@ export const CreateParcelleDialog = ({ open, geometry, onCancel, onConfirm }: Pr
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="datePlantation">Date de semis / plantation</Label>
-            <Input id="datePlantation" type="date" value={datePlantation} onChange={(e) => setDatePlantation(e.target.value)} />
+            <Input
+              id="datePlantation"
+              type="date"
+              max={todayIso}
+              value={datePlantation}
+              onChange={(e) => setDatePlantation(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="proprio">Propriétaire</Label>

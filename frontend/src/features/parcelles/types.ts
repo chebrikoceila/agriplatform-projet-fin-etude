@@ -22,6 +22,7 @@ export interface Parcelle {
   geometry: ParcelleGeometry;
   ndviMoyen?: number;
   ndwiMoyen?: number;
+  lastAnalyzedCaptureDate?: string;
   analytics?: AnalyticsPoint[];
   createdAt: string;
 }
@@ -29,6 +30,27 @@ export interface Parcelle {
 export interface ParcelleDetails {
   info: Parcelle;
   analytics: AnalyticsPoint[];
+  latestSentinelImageDate?: string | null;
+}
+
+export interface MeteoDay {
+  date: string;
+  tempMin: number | null;
+  tempMax: number | null;
+  precipMm: number | null;
+  etp: number | null;
+  humidity: number | null;
+  windSpeed: number | null;
+  windDirectionDeg: number | null;
+  windDirection: string | null;
+}
+
+export interface ParcelleMeteo {
+  parcelleId: string;
+  rainfallLast7DaysMm: number;
+  dryDays: number;
+  currentDay: MeteoDay | null;
+  next5Days: MeteoDay[];
 }
 
 export type CropStatus = "good" | "medium" | "stressed" | "unknown";

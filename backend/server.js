@@ -5,6 +5,7 @@ const connectDB = require('./config/db')
 const parcelleRoutes = require('./Routes/parcelleRoutes');
 const alertRoutes = require('./Routes/alertRoutes');
 const pushRoutes = require('./Routes/pushRoutes');
+const dashboardRoutes = require('./Routes/dashboardRoutes');
 const initializeGEE = require('./services/geeAuth');
 const { configureWebPush } = require('./services/pushService');
 const { startStressWorker } = require('./services/stressWorker');
@@ -24,6 +25,7 @@ configureWebPush();
 app.use('/api/parcelles', parcelleRoutes);
 app.use('/api/alertes', alertRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Route de santé
 app.get('/api/health', (req, res) => {

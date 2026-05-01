@@ -2,10 +2,16 @@ const Alerte = require('../models/Alert');
 
 exports.listAlerts = async (req, res) => {
     try {
-        const alerts = await Alerte.find()
+        const limit = Number(req.query.limit) > 0 ? Number(req.query.limit) : 200;
+        const filter = {};
+        if (req.query.statut === 'active') {
+            filter.isRead = false;
+        }
+
+        const alerts = await Alerte.find(filter)
             .populate('parcelleId', 'nom status')
             .sort({ date: -1 })
-            .limit(200);
+            .limit(limit);
         res.json(alerts);
     } catch (error) {
         res.status(500).json({ error: error.message });

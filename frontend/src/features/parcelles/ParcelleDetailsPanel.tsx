@@ -1,23 +1,44 @@
 import { useRef, useState } from "react";
-import { X, Calendar, Sprout, Droplets, Leaf, Loader2, MapPin, Download } from "lucide-react";
+import {
+  X,
+  Calendar,
+  Sprout,
+  Droplets,
+  Leaf,
+  Loader2,
+  MapPin,
+  Download,
+  Camera,
+  FileSpreadsheet,
+  CloudRain,
+  Wind,
+  ThermometerSun,
+  CloudSun,
+  Waves,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { StatusBadge } from "./StatusBadge";
 import { NdviChart } from "./NdviChart";
 import { formatDate, formatHa, formatNumber, polygonAreaHa } from "./utils";
-import type { ParcelleDetails } from "./types";
-import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
-import autoTable from "jspdf-autotable";
+import type { ParcelleDetails, ParcelleMeteo } from "./types";
+import { downloadParcelleCsv, downloadParcellePdf, PANEL_PDF_CHART_ID } from "./exportReports";
 
 interface Props {
   details: ParcelleDetails | null;
   loading: boolean;
   onClose: () => void;
+  meteo?: ParcelleMeteo | null;
 }
 
-export const ParcelleDetailsPanel = ({ details, loading, onClose }: Props) => {
+const getWeatherIcon = (precipMm: number | null | undefined, tempMax: number | null | undefined) => {
+  if ((precipMm ?? 0) >= 2) return <CloudRain className="size-3.5 text-sky-600" />;
+  if ((tempMax ?? 0) >= 32) return <ThermometerSun className="size-3.5 text-amber-500" />;
+  return <CloudSun className="size-3.5 text-emerald-600" />;
+};
+
+export const ParcelleDetailsPanel = ({ details, loading, onClose, meteo }: Props) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -37,69 +58,27 @@ export const ParcelleDetailsPanel = ({ details, loading, onClose }: Props) => {
     ? `Depuis le ${formatDate(details.info.datePlantation)}` 
     : "6 derniers mois";
 
+  const lastCaptureDate = details?.analytics?.length
+    ? details.analytics[details.analytics.length - 1].date
+    : details?.latestSentinelImageDate
+      ?? details?.info.lastAnalyzedCaptureDate
+      ?? null;
+
   const handleDownloadPdf = async () => {
     if (!details) return;
     try {
       setIsExporting(true);
-      
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      pdf.setFontSize(20);
-      pdf.setTextColor(40, 40, 40);
-      pdf.text(`Rapport de Parcelle : ${details.info.nom}`, 14, 22);
-
-      pdf.setFontSize(11);
-      pdf.setTextColor(100, 100, 100);
-      pdf.text(`Généré le ${new Date().toLocaleDateString()}`, 14, 30);
-
-      autoTable(pdf, {
-        startY: 40,
-        head: [['Propriété', 'Valeur']],
-        body: [
-          ['Nom de la parcelle', details.info.nom],
-          ['Propriétaire', details.info.proprietaire],
-          ['Date de création', formatDate(details.info.createdAt)],
-          ['Type de culture', details.info.cultureType ?? "Non spécifié"],
-          ['Surface estimée', formatHa(surface)],
-          ['NDVI Moyen', formatNumber(ndviAvg, 3)],
-          ['NDWI Moyen', formatNumber(ndwiAvg, 3)],
-        ],
-        theme: 'striped',
-        headStyles: { fillColor: [41, 128, 185] },
-        styles: { fontSize: 10, cellPadding: 4 },
-      });
-
-      const chartElement = document.getElementById('pdf-chart-container');
-      if (chartElement) {
-        const canvas = await html2canvas(chartElement, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#ffffff'
-        });
-        const imgData = canvas.toDataURL('image/png');
-        
-        const finalY = (pdf as any).lastAutoTable?.finalY || 100;
-        
-        pdf.setFontSize(14);
-        pdf.setTextColor(40, 40, 40);
-        pdf.text(`Évolution Temporelle (${periodText})`, 14, finalY + 15);
-        
-        const pdfWidth = pdf.internal.pageSize.getWidth() - 28;
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        
-        pdf.addImage(imgData, 'PNG', 14, finalY + 20, pdfWidth, pdfHeight);
-      }
-
-      pdf.save(`Rapport_${details.info.nom.replace(/\s+/g, '_')}.pdf`);
+      await downloadParcellePdf(details, PANEL_PDF_CHART_ID);
     } catch (error) {
       console.error("Erreur lors de la génération du PDF", error);
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleExportCsv = () => {
+    if (!details) return;
+    downloadParcelleCsv(details);
   };
 
   return (
@@ -114,6 +93,16 @@ export const ParcelleDetailsPanel = ({ details, loading, onClose }: Props) => {
             {/* Header */}
             <div className="relative bg-gradient-primary px-5 py-5 text-primary-foreground">
               <div className="absolute right-3 top-3 flex items-center gap-1 pdf-exclude">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={handleExportCsv}
+                  disabled={!details?.analytics?.length || isExporting}
+                  title="Exporter la série temporelle en CSV"
+                  className="size-7 text-primary-foreground hover:bg-white/20"
+                >
+                  <FileSpreadsheet className="size-4" />
+                </Button>
                 <Button
                   size="icon"
                   variant="ghost"
@@ -171,6 +160,11 @@ export const ParcelleDetailsPanel = ({ details, loading, onClose }: Props) => {
                   label="Propriétaire"
                   value={details.info.proprietaire}
                 />
+                <InfoTile
+                  icon={<Camera className="size-4" />}
+                  label="Dernière Image S2"
+                  value={lastCaptureDate ? formatDate(lastCaptureDate) : "—"}
+                />
               </div>
 
               <Separator />
@@ -200,6 +194,62 @@ export const ParcelleDetailsPanel = ({ details, loading, onClose }: Props) => {
 
               <Separator />
 
+              <div>
+                <h3 className="mb-3 text-sm font-semibold tracking-tight">Météo opérationnelle</h3>
+                {meteo ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <InfoTile
+                        icon={<CloudRain className="size-4 text-sky-600" />}
+                        label="Pluie 7 jours"
+                        value={`${meteo.rainfallLast7DaysMm.toFixed(1)} mm`}
+                      />
+                      <InfoTile
+                        icon={<ThermometerSun className="size-4 text-amber-500" />}
+                        label="ETP (jour)"
+                        value={meteo.currentDay?.etp != null ? `${meteo.currentDay.etp.toFixed(1)} mm/j` : "—"}
+                      />
+                      <InfoTile
+                        icon={<Waves className="size-4 text-cyan-600" />}
+                        label="Humidité (jour)"
+                        value={meteo.currentDay?.humidity != null ? `${meteo.currentDay.humidity.toFixed(0)} %` : "—"}
+                      />
+                      <InfoTile
+                        icon={<Wind className="size-4 text-slate-600" />}
+                        label="Vent (jour)"
+                        value={
+                          meteo.currentDay?.windSpeed != null
+                            ? `${meteo.currentDay.windSpeed.toFixed(1)} km/h ${meteo.currentDay.windDirection ?? ""}`.trim()
+                            : "—"
+                        }
+                      />
+                    </div>
+                    <div className="rounded-lg border border-border bg-gradient-to-br from-background via-background to-sky-50/60 p-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Températures min/max (J0 + 5 jours)
+                      </p>
+                      <div className="space-y-1 text-xs text-muted-foreground">
+                        {[meteo.currentDay, ...meteo.next5Days].filter(Boolean).map((day) => (
+                          <div key={day!.date} className="flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              {getWeatherIcon(day!.precipMm, day!.tempMax)}
+                              {formatDate(day!.date)}
+                            </span>
+                            <span className="font-medium text-foreground">
+                              {day!.tempMin != null ? `${day!.tempMin.toFixed(1)}°` : "—"} / {day!.tempMax != null ? `${day!.tempMax.toFixed(1)}°` : "—"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Données météo indisponibles pour le moment.</p>
+                )}
+              </div>
+
+              <Separator />
+
               {/* Chart */}
               <div>
                 <div className="mb-3 flex items-center justify-between">
@@ -208,7 +258,7 @@ export const ParcelleDetailsPanel = ({ details, loading, onClose }: Props) => {
                   </h3>
                   <span className="text-xs text-muted-foreground">{periodText}</span>
                 </div>
-                <div id="pdf-chart-container" className="bg-card pb-2">
+                <div id={PANEL_PDF_CHART_ID} className="bg-card pb-2">
                   <NdviChart data={details.analytics ?? []} />
                 </div>
               </div>

@@ -7,6 +7,7 @@ import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import AlertCenterPage from "./pages/AlertCenterPage";
+import DashboardPage from "./pages/DashboardPage";
 
 const queryClient = new QueryClient();
 
@@ -18,7 +19,9 @@ const App = () => (
       <ErrorBoundary>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/parcelles" element={<Index />} />
+            <Route path="/parcelles/:id" element={<Index />} />
             <Route path="/alertes" element={<AlertCenterPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

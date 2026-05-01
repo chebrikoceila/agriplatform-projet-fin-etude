@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { CloudRain, Droplets, Leaf, Wind } from "lucide-react";
 import { ParcelleSidebar } from "./ParcelleSidebar";
 import { ParcelleMap } from "./ParcelleMap";
 import { ParcelleDetailsPanel } from "./ParcelleDetailsPanel";
 import { CreateParcelleDialog } from "./CreateParcelleDialog";
 import { EditParcelleDialog } from "./EditParcelleDialog";
-import { parcellesApi } from "./api";
-import type { Parcelle, ParcelleDetails, ParcelleGeometry } from "./types";
+import { getParcelleMeteo, parcellesApi } from "./api";
+import type { Parcelle, ParcelleDetails, ParcelleGeometry, ParcelleMeteo } from "./types";
 import { polygonAreaHa } from "./utils";
 
 export const ParcelleManager = () => {
   const navigate = useNavigate();
+  const { id: routeParcelleId } = useParams();
   const [parcelles, setParcelles] = useState<Parcelle[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [showList, setShowList] = useState(false);
@@ -22,6 +24,9 @@ export const ParcelleManager = () => {
   const [drawing, setDrawing] = useState(false);
   const [pendingGeom, setPendingGeom] = useState<ParcelleGeometry | null>(null);
   const [editingParcelle, setEditingParcelle] = useState<Parcelle | null>(null);
+  const [meteoByParcelle, setMeteoByParcelle] = useState<Record<string, ParcelleMeteo>>({});
+  const selectedMeteo = selectedId ? meteoByParcelle[selectedId] : null;
+  const selectedParcelle = selectedId ? parcelles.find((p) => p._id === selectedId) : null;
 
   const fetchList = useCallback(async () => {
     setLoadingList(true);
@@ -42,6 +47,28 @@ export const ParcelleManager = () => {
     fetchList();
   };
 
+  useEffect(() => {
+    if (!parcelles.length) return;
+    let cancelled = false;
+    Promise.allSettled(parcelles.map((parcelle) => getParcelleMeteo(parcelle._id)))
+      .then((results) => {
+        if (cancelled) return;
+        const next: Record<string, ParcelleMeteo> = {};
+        results.forEach((result) => {
+          if (result.status === "fulfilled") {
+            next[result.value.parcelleId] = result.value;
+          }
+        });
+        setMeteoByParcelle(next);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          toast.error("Météo indisponible", { description: "Certaines données météo n'ont pas pu être chargées." });
+        }
+      });
+    return () => { cancelled = true; };
+  }, [parcelles]);
+
   // Load details on select
   useEffect(() => {
     if (!selectedId) { setDetails(null); return; }
@@ -55,6 +82,14 @@ export const ParcelleManager = () => {
       .finally(() => { if (!cancelled) setLoadingDetails(false); });
     return () => { cancelled = true; };
   }, [selectedId]);
+
+  useEffect(() => {
+    if (routeParcelleId) {
+      setShowList(true);
+      setSelectedId(routeParcelleId);
+      if (!parcelles.length) fetchList();
+    }
+  }, [routeParcelleId, parcelles.length, fetchList]);
 
   const handleCreated = (geom: ParcelleGeometry) => {
     setDrawing(false);
@@ -125,6 +160,12 @@ export const ParcelleManager = () => {
           onSelect={setSelectedId}
           drawing={drawing}
           onCreated={handleCreated}
+          rainByParcelle={Object.fromEntries(
+            Object.entries(meteoByParcelle).map(([id, meteo]) => [
+              id,
+              { rain7d: meteo.rainfallLast7DaysMm, dryDays: meteo.dryDays },
+            ])
+          )}
         />
 
         {/* Top status overlay */}
@@ -139,13 +180,49 @@ export const ParcelleManager = () => {
           )}
         </div>
 
-        {/* Legend */}
-        <div className="absolute bottom-6 left-4 z-[500] rounded-lg border border-border bg-card/95 p-3 text-xs shadow-panel backdrop-blur">
-          <div className="mb-2 font-semibold text-foreground">État de la végétation</div>
-          <div className="space-y-1.5">
-            <LegendItem color="bg-status-good" label="NDVI > 0.6 — Bonne récolte" />
-            <LegendItem color="bg-status-medium" label="0.3 – 0.6 — Moyenne" />
-            <LegendItem color="bg-status-stressed" label="< 0.3 — Stressée" />
+        <div className="absolute bottom-6 left-4 z-[500] flex w-[310px] flex-col gap-3">
+          {selectedMeteo && (
+            <div className="rounded-xl border border-sky-200/60 bg-gradient-to-br from-white/95 via-sky-50/95 to-cyan-50/90 p-3 text-xs shadow-panel backdrop-blur">
+              <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-sky-700">
+                <CloudRain className="size-3.5" />
+                Météo terrain
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <OverlayMetric
+                  icon={<CloudRain className="size-3.5 text-sky-600" />}
+                  label="Pluie 7j"
+                  value={`${selectedMeteo.rainfallLast7DaysMm.toFixed(1)} mm`}
+                />
+                <OverlayMetric
+                  icon={<Droplets className="size-3.5 text-cyan-600" />}
+                  label="NDWI"
+                  value={selectedParcelle?.ndwiMoyen?.toFixed(2) ?? "—"}
+                />
+                <OverlayMetric
+                  icon={<Leaf className="size-3.5 text-emerald-600" />}
+                  label="Jours secs"
+                  value={`${selectedMeteo.dryDays}`}
+                />
+                <OverlayMetric
+                  icon={<Wind className="size-3.5 text-slate-600" />}
+                  label="Vent"
+                  value={
+                    selectedMeteo.currentDay?.windSpeed != null
+                      ? `${selectedMeteo.currentDay.windSpeed.toFixed(0)} km/h`
+                      : "—"
+                  }
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-xl border border-border bg-card/95 p-3 text-xs shadow-panel backdrop-blur">
+            <div className="mb-2 font-semibold text-foreground">État de la végétation</div>
+            <div className="space-y-1.5">
+              <LegendItem color="bg-status-good" label="NDVI > 0.6 — Bonne récolte" />
+              <LegendItem color="bg-status-medium" label="0.3 – 0.6 — Moyenne" />
+              <LegendItem color="bg-status-stressed" label="< 0.3 — Stressée" />
+            </div>
           </div>
         </div>
 
@@ -154,6 +231,7 @@ export const ParcelleManager = () => {
             details={details}
             loading={loadingDetails}
             onClose={() => setSelectedId(null)}
+            meteo={selectedId ? (meteoByParcelle[selectedId] ?? null) : null}
           />
         )}
       </main>
@@ -179,5 +257,23 @@ const LegendItem = ({ color, label }: { color: string; label: string }) => (
   <div className="flex items-center gap-2 text-muted-foreground">
     <span className={`size-2.5 rounded-sm ${color}`} />
     {label}
+  </div>
+);
+
+const OverlayMetric = ({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) => (
+  <div className="rounded-md border border-white/60 bg-white/70 px-2.5 py-1.5">
+    <div className="mb-1 flex items-center gap-1 text-[10px] uppercase tracking-wider text-slate-500">
+      {icon}
+      {label}
+    </div>
+    <div className="text-sm font-semibold text-slate-800">{value}</div>
   </div>
 );

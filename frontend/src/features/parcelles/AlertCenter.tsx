@@ -7,6 +7,7 @@ import { alertsApi } from "./api";
 import { subscribeToPushNotifications } from "./pushNotifications";
 import type { AlertItem } from "./types";
 import { useNavigate } from "react-router-dom";
+import { PlatformSidebar } from "@/components/PlatformSidebar";
 
 const alertToneClass: Record<AlertItem["type"], string> = {
   "Stress Hydrique": "border-l-4 border-l-amber-500",
@@ -71,81 +72,84 @@ export const AlertCenter = () => {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 p-6">
-      <div className="flex items-center justify-between">
-        <a href="/" className="inline-flex items-center gap-2 text-foreground hover:text-primary">
-          <BellRing className="size-5" />
-          <span className="text-lg font-semibold">AgriSelect</span>
-        </a>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate(-1)}>
-            <ArrowLeft className="mr-2 size-4" />
-            Retour
-          </Button>
-          <Button variant="outline" onClick={loadAlerts}>
-            <RefreshCw className="mr-2 size-4" />
-            Actualiser
-          </Button>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-xl">
+    <div className="flex h-screen w-full overflow-hidden bg-background">
+      <PlatformSidebar />
+      <div className="mx-auto w-full max-w-5xl space-y-5 overflow-auto p-6">
+        <div className="flex items-center justify-between">
+          <a href="/" className="inline-flex items-center gap-2 text-foreground hover:text-primary">
             <BellRing className="size-5" />
-            Centre d'alertes agronomiques
-          </CardTitle>
-          <Button onClick={enablePush} disabled={subscribing}>
-            Activer les notifications push
-          </Button>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={clearReadAlerts}>
-            <Trash2 className="mr-2 size-4" />
-            Supprimer les alertes lues
-          </Button>
-          <Button variant="outline" size="sm" onClick={clearAllAlerts}>
-            <Trash2 className="mr-2 size-4" />
-            Tout supprimer
-          </Button>
-        </CardContent>
-      </Card>
+            <span className="text-lg font-semibold">AgriSpectra</span>
+          </a>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => navigate(-1)}>
+              <ArrowLeft className="mr-2 size-4" />
+              Retour
+            </Button>
+            <Button variant="outline" onClick={loadAlerts}>
+              <RefreshCw className="mr-2 size-4" />
+              Actualiser
+            </Button>
+          </div>
+        </div>
 
-      <div className="space-y-3">
-        {loading && <p className="text-sm text-muted-foreground">Chargement des alertes...</p>}
-        {!loading && alerts.length === 0 && (
-          <Card>
-            <CardContent className="py-8 text-sm text-muted-foreground">Aucune alerte pour le moment.</CardContent>
-          </Card>
-        )}
-        {!loading &&
-          alerts.map((alert) => (
-            <Card key={alert._id} className={alertToneClass[alert.type]}>
-              <CardContent className="flex items-center justify-between py-4">
-                <div>
-                  <p className="font-medium text-foreground">{alert.parcelleId?.nom || "Parcelle"}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {alert.type} · indice {alert.valeurIndice.toFixed(2)} · {new Date(alert.date).toLocaleString()}
-                  </p>
-                  {alert.rapport && (
-                    <p className="mt-1 text-sm text-foreground/80">{alert.rapport}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {!alert.isRead && (
-                    <Button variant="outline" size="sm" onClick={() => markRead(alert._id)}>
-                      <CheckCheck className="mr-2 size-4" />
-                      Marquer comme lue
-                    </Button>
-                  )}
-                  <Button variant="outline" size="sm" onClick={() => deleteAlert(alert._id)}>
-                    <Trash2 className="mr-2 size-4" />
-                    Supprimer
-                  </Button>
-                </div>
-              </CardContent>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <BellRing className="size-5" />
+              Centre d'alertes agronomiques
+            </CardTitle>
+            <Button onClick={enablePush} disabled={subscribing}>
+              Activer les notifications push
+            </Button>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={clearReadAlerts}>
+              <Trash2 className="mr-2 size-4" />
+              Supprimer les alertes lues
+            </Button>
+            <Button variant="outline" size="sm" onClick={clearAllAlerts}>
+              <Trash2 className="mr-2 size-4" />
+              Tout supprimer
+            </Button>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-3">
+          {loading && <p className="text-sm text-muted-foreground">Chargement des alertes...</p>}
+          {!loading && alerts.length === 0 && (
+            <Card>
+              <CardContent className="py-8 text-sm text-muted-foreground">Aucune alerte pour le moment.</CardContent>
             </Card>
-          ))}
+          )}
+          {!loading &&
+            alerts.map((alert) => (
+              <Card key={alert._id} className={alertToneClass[alert.type]}>
+                <CardContent className="flex items-center justify-between py-4">
+                  <div>
+                    <p className="font-medium text-foreground">{alert.parcelleId?.nom || "Parcelle"}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {alert.type} · indice {alert.valeurIndice.toFixed(2)} · {new Date(alert.date).toLocaleString()}
+                    </p>
+                    {alert.rapport && (
+                      <p className="mt-1 text-sm text-foreground/80">{alert.rapport}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!alert.isRead && (
+                      <Button variant="outline" size="sm" onClick={() => markRead(alert._id)}>
+                        <CheckCheck className="mr-2 size-4" />
+                        Marquer comme lue
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => deleteAlert(alert._id)}>
+                      <Trash2 className="mr-2 size-4" />
+                      Supprimer
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+        </div>
       </div>
     </div>
   );
