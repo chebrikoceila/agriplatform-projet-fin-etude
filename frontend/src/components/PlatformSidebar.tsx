@@ -1,8 +1,11 @@
 import { useCallback, useState } from "react";
-import { LayoutDashboard, Map, Bell, FileText, FileSpreadsheet } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { LayoutDashboard, Map, Bell, FileText, FileSpreadsheet, LogOut, User } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { ExportParcelleShortcutDialog } from "@/components/ExportParcelleShortcutDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { to: "/", label: "Tableau de bord", icon: LayoutDashboard, end: true },
@@ -14,6 +17,8 @@ const toolButtonClass =
   "flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground";
 
 export const PlatformSidebar = () => {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [shortcutOpen, setShortcutOpen] = useState(false);
   const [shortcutMode, setShortcutMode] = useState<"pdf" | "csv" | null>(null);
 
@@ -82,6 +87,30 @@ export const PlatformSidebar = () => {
 
       <div className="mt-auto px-5 pb-5">
         <Separator className="mb-4 bg-sidebar-border" />
+        {user ? (
+          <div className="mb-4 rounded-md border border-sidebar-border bg-sidebar-accent/20 px-3 py-2.5">
+            <div className="flex items-start gap-2">
+              <User className="mt-0.5 size-4 shrink-0 text-sidebar-foreground/70" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-medium text-sidebar-foreground">{user.email}</p>
+                <p className="text-[10px] capitalize text-sidebar-foreground/60">{user.role}</p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="mt-2 h-8 w-full justify-start gap-2 px-2 text-xs text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+              onClick={() => {
+                logout();
+                navigate("/login", { replace: true });
+              }}
+            >
+              <LogOut className="size-3.5" />
+              Déconnexion
+            </Button>
+          </div>
+        ) : null}
         <div className="space-y-1 text-xs text-sidebar-foreground/75">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/60">
             Sources de donnees

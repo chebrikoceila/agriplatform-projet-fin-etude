@@ -1,9 +1,15 @@
 const Alerte = require('../models/Alert');
+const Parcelle = require('../models/Parcel');
 
 exports.listAlerts = async (req, res) => {
     try {
         const limit = Number(req.query.limit) > 0 ? Number(req.query.limit) : 200;
-        const filter = {};
+
+        // Récupérer uniquement les parcelles de l'utilisateur connecté
+        const userParcelles = await Parcelle.find({ userId: req.auth.userId }, { _id: 1 });
+        const parcelleIds = userParcelles.map((p) => p._id);
+
+        const filter = { parcelleId: { $in: parcelleIds } };
         if (req.query.statut === 'active') {
             filter.isRead = false;
         }

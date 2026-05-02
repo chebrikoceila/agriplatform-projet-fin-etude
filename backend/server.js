@@ -1,53 +1,65 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const connectDB = require('./config/db')
+const passport = require('passport');
+const connectDB = require('./config/db');
+const { configurePassport } = require('./config/passport');
+const authJwt = require('./middleware/authJwt');
 const parcelleRoutes = require('./Routes/parcelleRoutes');
 const alertRoutes = require('./Routes/alertRoutes');
 const pushRoutes = require('./Routes/pushRoutes');
 const dashboardRoutes = require('./Routes/dashboardRoutes');
+const authRoutes = require('./Routes/authRoutes');
+const authApiRoutes = require('./Routes/authApiRoutes');
 const initializeGEE = require('./services/geeAuth');
 const { configureWebPush } = require('./services/pushService');
 const { startStressWorker } = require('./services/stressWorker');
-require('dotenv').config();
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+configurePassport();
 
-// Routes de test
+const corsOrigin = process.env.FRONTEND_URL || true;
+app.use(
+  cors({
+    origin: corsOrigin,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+app.use(express.json());
+app.use(passport.initialize());
+
 initializeGEE();
 configureWebPush();
 
-// Routes
-app.use('/api/parcelles', parcelleRoutes);
-app.use('/api/alertes', alertRoutes);
-app.use('/api/push', pushRoutes);
-app.use('/api/dashboard', dashboardRoutes);
+// OAuth : même routeur sous /auth et /api/auth pour coller à l’URI enregistrée dans Google Cloud
+app.use('/auth', authRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/auth', authApiRoutes);
 
-// Route de santé
+app.use('/api/parcelles', authJwt, parcelleRoutes);
+app.use('/api/alertes', authJwt, alertRoutes);
+app.use('/api/push', authJwt, pushRoutes);
+app.use('/api/dashboard', authJwt, dashboardRoutes);
+
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     message: 'Serveur backend opérationnel',
     database: mongoose.connection.readyState === 1 ? 'connectée' : 'déconnectée',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
-
-
-// Fonction de démarrage
 const startServer = async () => {
   try {
     await connectDB();
-    
+
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
       console.log(`Serveur démarré sur http://localhost:${PORT}`);
-      console.log(`Documentation tests : http://localhost:${PORT}/api/test`);
     });
     startStressWorker();
   } catch (error) {

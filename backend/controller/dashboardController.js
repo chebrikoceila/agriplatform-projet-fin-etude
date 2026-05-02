@@ -3,8 +3,15 @@ const Alerte = require('../models/Alert');
 
 exports.getDashboardStats = async (req, res) => {
     try {
-        const parcelles = await Parcelle.find({}, { ndviMoyen: 1, ndwiMoyen: 1 });
-        const activeAlertsCount = await Alerte.countDocuments({ isRead: false });
+        const userId = req.auth.userId;
+        const parcelles = await Parcelle.find({ userId }, { ndviMoyen: 1, ndwiMoyen: 1 });
+
+        // Compter uniquement les alertes liées aux parcelles de cet utilisateur
+        const parcelleIds = parcelles.map((p) => p._id);
+        const activeAlertsCount = await Alerte.countDocuments({
+            parcelleId: { $in: parcelleIds },
+            isRead: false
+        });
 
         const ndviValues = parcelles
             .map((p) => p.ndviMoyen)

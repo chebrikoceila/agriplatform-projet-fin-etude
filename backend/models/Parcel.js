@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 
 const parcelleSchema = new mongoose.Schema({
     nom: { type: String, required: true },
-    proprietaire: { type: String, required: true }, // Ou ObjectId si tu as déjà l'auth
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true }, // Propriétaire authentifié
+    proprietaire: { type: String, required: true }, // Nom affiché du propriétaire
     cultureType: String,
     datePlantation: { type: Date }, // Début du cycle phénologique
     status: {

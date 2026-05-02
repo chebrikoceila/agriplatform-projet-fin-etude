@@ -40,6 +40,8 @@ const getSeriesWithFallback = async (geometry, startDate, endDate) => {
 exports.createParcelle = async (req, res) => {
     try {
         const payload = { ...req.body };
+        // Associer la parcelle à l'utilisateur connecté
+        payload.userId = req.auth.userId;
         if (Object.prototype.hasOwnProperty.call(payload, 'datePlantation')) {
             payload.datePlantation = sanitizeDatePlantation(payload.datePlantation);
         }
@@ -68,10 +70,10 @@ exports.createParcelle = async (req, res) => {
     }
 };
 
-// READ ALL
+// READ ALL — filtré par utilisateur connecté
 exports.getAllParcelles = async (req, res) => {
     try {
-        const parcelles = await Parcelle.find().sort({ createdAt: -1 });
+        const parcelles = await Parcelle.find({ userId: req.auth.userId }).sort({ createdAt: -1 });
         res.json(parcelles);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -81,7 +83,7 @@ exports.getAllParcelles = async (req, res) => {
 // GET ONE + STATS GEE (La logique métier principale)
 exports.getParcelleDetails = async (req, res) => {
     try {
-        const parcelle = await Parcelle.findById(req.params.id);
+        const parcelle = await Parcelle.findOne({ _id: req.params.id, userId: req.auth.userId });
         if (!parcelle) return res.status(404).send("Parcelle non trouvée");
 
         // On récupère les données NDVI depuis la date de plantation (ou 6 mois)
@@ -101,7 +103,7 @@ exports.getParcelleDetails = async (req, res) => {
 
 exports.getParcelleTimeSeries = async (req, res) => {
     try {
-        const parcelle = await Parcelle.findById(req.params.id);
+        const parcelle = await Parcelle.findOne({ _id: req.params.id, userId: req.auth.userId });
         if (!parcelle) return res.status(404).send("Parcelle non trouvée");
 
         const todayIso = toIsoDate(new Date());
@@ -119,7 +121,7 @@ exports.getParcelleTimeSeries = async (req, res) => {
 
 exports.getParcelleWeather = async (req, res) => {
     try {
-        const parcelle = await Parcelle.findById(req.params.id);
+        const parcelle = await Parcelle.findOne({ _id: req.params.id, userId: req.auth.userId });
         if (!parcelle) return res.status(404).send("Parcelle non trouvée");
         const meteo = await getParcelleWeather(parcelle.geometry);
         res.json({ parcelleId: parcelle._id, ...meteo });
@@ -134,7 +136,14 @@ exports.updateParcelle = async (req, res) => {
     if (Object.prototype.hasOwnProperty.call(payload, 'datePlantation')) {
         payload.datePlantation = sanitizeDatePlantation(payload.datePlantation);
     }
-    const updated = await Parcelle.findByIdAndUpdate(req.params.id, payload, { new: true });
+    // Empêcher la modification de userId
+    delete payload.userId;
+    const updated = await Parcelle.findOneAndUpdate(
+        { _id: req.params.id, userId: req.auth.userId },
+        payload,
+        { new: true }
+    );
+    if (!updated) return res.status(404).json({ error: 'Parcelle non trouvée ou accès refusé' });
     res.json(updated);
   } catch (err) { res.status(400).json({ error: err.message }); }
 };
@@ -149,10 +158,11 @@ exports.analyzeParcelleStress = async (req, res) => {
 };
 
 
-// DELETE
+// DELETE — vérifie l'appartenance avant suppression
 exports.deleteParcelle = async (req, res) => {
     try {
-        await Parcelle.findByIdAndDelete(req.params.id);
+        const deleted = await Parcelle.findOneAndDelete({ _id: req.params.id, userId: req.auth.userId });
+        if (!deleted) return res.status(404).json({ error: 'Parcelle non trouvée ou accès refusé' });
         res.json({ message: "Parcelle supprimée avec succès" });
     } catch (err) {
         res.status(500).json({ error: err.message });

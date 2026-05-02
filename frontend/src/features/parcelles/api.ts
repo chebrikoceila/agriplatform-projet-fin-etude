@@ -1,8 +1,33 @@
-import axios from "axios";
+import axios, { type AxiosInstance } from "axios";
+import { clearAccessToken, getAccessToken } from "@/lib/authStorage";
 import type { AlertItem, AnalyticsPoint, Parcelle, ParcelleDetails, ParcelleGeometry, ParcelleMeteo } from "./types";
 
 // Configurez VITE_API_URL dans .env.local pour pointer vers votre backend.
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
+
+const attachAuth = (instance: AxiosInstance) => {
+  instance.interceptors.request.use((config) => {
+    const token = getAccessToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
+  instance.interceptors.response.use(
+    (res) => res,
+    (err) => {
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        clearAccessToken();
+        const path = window.location.pathname;
+        if (!path.startsWith("/login") && !path.startsWith("/auth/callback")) {
+          window.location.assign("/login");
+        }
+      }
+      return Promise.reject(err);
+    }
+  );
+};
 
 const client = axios.create({
   baseURL: `${API_BASE}/api/parcelles`,
@@ -23,6 +48,17 @@ const pushClient = axios.create({
   baseURL: `${API_BASE}/api/push`,
   headers: { "Content-Type": "application/json" },
 });
+
+const authClient = axios.create({
+  baseURL: `${API_BASE}/api/auth`,
+  headers: { "Content-Type": "application/json" },
+});
+
+attachAuth(client);
+attachAuth(alertsClient);
+attachAuth(dashboardClient);
+attachAuth(pushClient);
+attachAuth(authClient);
 
 export interface CreateParcellePayload {
   nom: string;
@@ -122,3 +158,35 @@ export const pushApi = {
 
 export const getVapidPublicKey = () =>
   import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+
+export interface AuthMeUser {
+  _id: string;
+  googleId: string;
+  email: string;
+  nom: string;
+  prenom: string;
+  photo: string;
+  role: string;
+  wilaya: string;
+  nomExploitation?: string;
+  createdAt: string;
+}
+
+export interface PatchProfilePayload {
+  role?: string;
+  wilaya?: string;
+  nomExploitation?: string;
+}
+
+export const authApi = {
+  me: async (): Promise<AuthMeUser> => {
+    const { data } = await authClient.get<AuthMeUser>("/me");
+    return data;
+  },
+  patchProfile: async (
+    payload: PatchProfilePayload
+  ): Promise<{ user: AuthMeUser; token: string }> => {
+    const { data } = await authClient.patch<{ user: AuthMeUser; token: string }>("/me", payload);
+    return data;
+  },
+};
