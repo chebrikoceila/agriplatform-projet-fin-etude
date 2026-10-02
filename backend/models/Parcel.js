@@ -11,6 +11,7 @@ const parcelleSchema = new mongoose.Schema({
         enum: ['ok', 'warning', 'critical'],
         default: 'ok'
     },
+    wilaya: { type: String, default: 'Non spécifié' },
     surface: Number, // en hectares par exemple
     geometry: {
         type: { type: String, enum: ['Polygon'], required: true },

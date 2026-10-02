@@ -121,14 +121,30 @@ export const alertsApi = {
 
 export interface DashboardStats {
   activeParcelles: number;
+  trendParcelles: number;
   ndviGlobalAvg: number | null;
+  trendNdvi: number;
   stressHydriqueCount: number;
+  trendStressHydrique: number;
   activeAlertsCount: number;
+  trendAlerts: number;
 }
 
 export const dashboardApi = {
   stats: async (): Promise<DashboardStats> => {
     const { data } = await dashboardClient.get<DashboardStats>("/stats");
+    return data;
+  },
+  serie: async (): Promise<{ date: string; ndvi: number | null; ndwi: number | null }[]> => {
+    const { data } = await dashboardClient.get<{ date: string; ndvi: number | null; ndwi: number | null }[]>("/serie");
+    return data;
+  },
+  statusDistribution: async (): Promise<{ name: string; value: number }[]> => {
+    const { data } = await dashboardClient.get<{ name: string; value: number }[]>("/status-distribution");
+    return data;
+  },
+  wilayas: async (): Promise<{ name: string; value: number }[]> => {
+    const { data } = await dashboardClient.get<{ name: string; value: number }[]>("/wilayas");
     return data;
   },
 };

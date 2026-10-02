@@ -1,311 +1,211 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
-import { MapContainer, Polygon, TileLayer, ZoomControl } from "react-leaflet";
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend } from "chart.js";
-import { Line } from "react-chartjs-2";
-import { Droplets, Leaf, Siren, Sprout } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from "chart.js";
+import { Bar, Doughnut } from "react-chartjs-2";
+import { Droplets, Sprout, Siren, Activity, Calendar, TrendingUp, TrendingDown } from "lucide-react";
 import { PlatformSidebar } from "@/components/PlatformSidebar";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatHa, formatNumber } from "@/features/parcelles/utils";
-import { alertsApi, dashboardApi, getParcelleSeries, parcellesApi, type DashboardStats } from "@/features/parcelles/api";
-import type { AlertItem, AnalyticsPoint, Parcelle } from "@/features/parcelles/types";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { dashboardApi, parcellesApi, getParcelleSeries, type DashboardStats } from "@/features/parcelles/api";
+import type { Parcelle, AnalyticsPoint } from "@/features/parcelles/types";
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
-const getNdviColor = (ndvi?: number | null) => {
-  if (ndvi == null || Number.isNaN(ndvi)) return "#64748b";
-  if (ndvi > 0.6) return "#16a34a";
-  if (ndvi >= 0.3) return "#eab308";
-  return "#dc2626";
-};
+interface SerieData { date: string; ndvi: number | null; ndwi: number | null; }
+interface DistData { name: string; value: number; }
 
 const formatDateInput = (date: Date) => date.toISOString().slice(0, 10);
 
 const DashboardPage = () => {
-  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [parcelles, setParcelles] = useState<Parcelle[]>([]);
-  const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [selectedParcelleId, setSelectedParcelleId] = useState<string | null>(null);
-  const [series, setSeries] = useState<AnalyticsPoint[]>([]);
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [parcellesLoading, setParcellesLoading] = useState(true);
-  const [alertsLoading, setAlertsLoading] = useState(true);
-  const [seriesLoading, setSeriesLoading] = useState(false);
-  const [statsError, setStatsError] = useState<string | null>(null);
-  const [parcellesError, setParcellesError] = useState<string | null>(null);
-  const [alertsError, setAlertsError] = useState<string | null>(null);
-  const [seriesError, setSeriesError] = useState<string | null>(null);
+  const [serie, setSerie] = useState<AnalyticsPoint[]>([]);
+  const [statusDist, setStatusDist] = useState<DistData[]>([]);
+  const [wilayasDist, setWilayasDist] = useState<DistData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [serieLoading, setSerieLoading] = useState(false);
+
   const [dateRange, setDateRange] = useState(() => {
     const end = new Date();
     const start = new Date();
-    start.setMonth(start.getMonth() - 6);
+    start.setMonth(start.getMonth() - 3);
     return { debut: formatDateInput(start), fin: formatDateInput(end) };
   });
 
   useEffect(() => {
     let cancelled = false;
-    setStatsLoading(true);
-    setStatsError(null);
-    dashboardApi
-      .stats()
-      .then((data) => {
-        if (!cancelled) setStats(data);
-      })
-      .catch((error: any) => {
-        if (!cancelled) setStatsError(error?.response?.data?.error ?? "Erreur lors du chargement des KPI.");
-      })
-      .finally(() => {
-        if (!cancelled) setStatsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    setLoading(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    setParcellesLoading(true);
-    setParcellesError(null);
-    parcellesApi
-      .list()
-      .then((data) => {
-        if (!cancelled) {
-          setParcelles(data);
-          if (!selectedParcelleId && data.length) {
-            setSelectedParcelleId(data[0]._id);
-          }
+    Promise.all([
+      dashboardApi.stats(),
+      dashboardApi.statusDistribution(),
+      dashboardApi.wilayas(),
+      parcellesApi.list()
+    ]).then(([statsData, statusData, wilayasData, parcellesData]) => {
+      if (!cancelled) {
+        setStats(statsData);
+        setStatusDist(statusData);
+        setWilayasDist(wilayasData);
+        setParcelles(parcellesData);
+        if (parcellesData.length > 0 && !selectedParcelleId) {
+          setSelectedParcelleId(parcellesData[0]._id);
         }
-      })
-      .catch((error: any) => {
-        if (!cancelled) setParcellesError(error?.response?.data?.error ?? "Impossible de charger les parcelles.");
-      })
+      }
+    }).catch(console.error)
       .finally(() => {
-        if (!cancelled) setParcellesLoading(false);
+        if (!cancelled) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedParcelleId]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setAlertsLoading(true);
-    setAlertsError(null);
-    alertsApi
-      .list({ limit: 5, statut: "active" })
-      .then((data) => {
-        if (!cancelled) setAlerts(data);
-      })
-      .catch((error: any) => {
-        if (!cancelled) setAlertsError(error?.response?.data?.error ?? "Impossible de charger les alertes actives.");
-      })
-      .finally(() => {
-        if (!cancelled) setAlertsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
     if (!selectedParcelleId) return;
     let cancelled = false;
-    setSeriesLoading(true);
-    setSeriesError(null);
+    setSerieLoading(true);
     getParcelleSeries(selectedParcelleId, dateRange.debut, dateRange.fin)
       .then((data) => {
-        if (!cancelled) setSeries(data);
+        if (!cancelled) setSerie(data);
       })
-      .catch((error: any) => {
-        if (!cancelled) setSeriesError(error?.response?.data?.error ?? "Erreur lors du chargement de la série temporelle.");
-      })
+      .catch(console.error)
       .finally(() => {
-        if (!cancelled) setSeriesLoading(false);
+        if (!cancelled) setSerieLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [selectedParcelleId, dateRange.debut, dateRange.fin]);
 
-  const mapCenter = useMemo<[number, number]>(() => {
-    if (!parcelles.length) return [31.7917, -7.0926];
-    const coords = parcelles.flatMap((p) => p.geometry.coordinates?.[0] ?? []);
-    if (!coords.length) return [31.7917, -7.0926];
-    const [sumLng, sumLat] = coords.reduce<[number, number]>(
-      (acc, point) => [acc[0] + point[0], acc[1] + point[1]],
-      [0, 0]
+  const barChartData = {
+    labels: serie.map(s => s.date),
+    datasets: [
+      {
+        label: "NDVI",
+        data: serie.map(s => s.ndvi),
+        backgroundColor: "#16a34a",
+        borderRadius: 4,
+        barPercentage: 0.6,
+        categoryPercentage: 0.8
+      },
+      {
+        label: "NDWI",
+        data: serie.map(s => s.ndwi),
+        backgroundColor: "#2563eb",
+        borderRadius: 4,
+        barPercentage: 0.6,
+        categoryPercentage: 0.8
+      }
+    ]
+  };
+
+  const barChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: "top" as const, align: "end" as const, labels: { usePointStyle: true, boxWidth: 8 } }
+    },
+    scales: {
+      y: { min: 0, max: 1, border: { display: false }, grid: { color: "#e2e8f0" } },
+      x: { border: { display: false }, grid: { display: false } }
+    }
+  };
+
+  // Status colors: Saines (green), Modérées (orange), Stress (red)
+  const statusColors: Record<string, string> = {
+    "Saines": "#10b981",
+    "Modérées": "#f59e0b",
+    "Stress": "#ef4444"
+  };
+
+  const donutChartData = {
+    labels: statusDist.map(d => d.name),
+    datasets: [
+      {
+        data: statusDist.map(d => d.value),
+        backgroundColor: statusDist.map(d => statusColors[d.name] || "#cbd5e1"),
+        borderWidth: 0,
+        hoverOffset: 4
+      }
+    ]
+  };
+
+  const donutChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: "75%",
+    plugins: {
+      legend: { display: false }
+    }
+  };
+
+  const formatTrend = (trend?: number, isInverseGood = false) => {
+    if (trend == null || isNaN(trend)) return null;
+    const isPositive = trend > 0;
+    const isGood = isInverseGood ? !isPositive : isPositive;
+    const colorClass = isGood ? "text-emerald-500" : "text-red-500";
+    const Icon = isPositive ? TrendingUp : TrendingDown;
+    const absValue = Math.abs(trend);
+    const text = Number.isInteger(absValue) ? absValue.toString() : absValue.toFixed(1) + "%";
+
+    return (
+      <span className={`flex items-center text-xs font-semibold ${colorClass}`}>
+        <Icon className="mr-1 size-3" />
+        {isPositive ? "+" : "-"}{text}
+      </span>
     );
-    return [sumLat / coords.length, sumLng / coords.length];
-  }, [parcelles]);
+  };
 
-  const chartData = useMemo(
-    () => ({
-      labels: series.map((point) => point.date),
-      datasets: [
-        {
-          label: "NDVI",
-          data: series.map((point) => point.ndvi),
-          borderColor: "#16a34a",
-          backgroundColor: "rgba(22,163,74,0.2)",
-          borderWidth: 2,
-          pointRadius: 2,
-          tension: 0.2,
-        },
-        {
-          label: "NDWI",
-          data: series.map((point) => point.ndwi),
-          borderColor: "#2563eb",
-          backgroundColor: "rgba(37,99,235,0.2)",
-          borderDash: [8, 4],
-          borderWidth: 2,
-          pointRadius: 2,
-          tension: 0.2,
-        },
-      ],
-    }),
-    [series]
-  );
-
-  const panelClass = "border border-emerald-900/70 bg-[#0f2f22]/85 text-emerald-50 shadow-lg";
-  const softTextClass = "text-emerald-100/80";
+  const wilayaColors = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#64748b"];
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
       <PlatformSidebar />
-      <main className="flex-1 space-y-6 overflow-auto bg-[radial-gradient(circle_at_top,#184c35_0%,#103325_45%,#0b241a_100%)] p-6 text-emerald-50">
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <main className="flex-1 space-y-6 overflow-y-auto p-8">
+
+
+
+        {/* KPI Cards */}
+        <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
           <KpiCard
-            title="Parcelles actives"
-            icon={<Sprout className="size-4 text-primary" />}
-            value={statsLoading ? null : `${stats?.activeParcelles ?? 0}`}
-            loading={statsLoading}
-            error={statsError}
-            className={panelClass}
-            softTextClass={softTextClass}
+            title="Total parcelles"
+            icon={<Sprout className="size-4 text-emerald-500" />}
+            iconBg="bg-emerald-50"
+            value={loading ? null : `${stats?.activeParcelles ?? 0}`}
+            trend={formatTrend(stats?.trendParcelles)}
+            loading={loading}
           />
           <KpiCard
             title="NDVI moyen global"
-            icon={<Leaf className="size-4 text-emerald-600" />}
-            value={statsLoading ? null : formatNumber(stats?.ndviGlobalAvg, 3)}
-            loading={statsLoading}
-            error={statsError}
-            className={panelClass}
-            softTextClass={softTextClass}
+            icon={<Activity className="size-4 text-emerald-500" />}
+            iconBg="bg-emerald-50"
+            value={loading ? null : stats?.ndviGlobalAvg ? stats.ndviGlobalAvg.toFixed(2) : "—"}
+            trend={formatTrend(stats?.trendNdvi)}
+            loading={loading}
           />
           <KpiCard
-            title="Stress hydrique (NDWI)"
-            icon={<Droplets className="size-4 text-blue-600" />}
-            value={statsLoading ? null : `${stats?.stressHydriqueCount ?? 0}`}
-            loading={statsLoading}
-            error={statsError}
-            className={panelClass}
-            softTextClass={softTextClass}
+            title="Stress hydrique"
+            icon={<Droplets className="size-4 text-amber-500" />}
+            iconBg="bg-amber-50"
+            value={loading ? null : `${stats?.stressHydriqueCount ?? 0}`}
+            trend={formatTrend(stats?.trendStressHydrique, true)}
+            loading={loading}
           />
           <KpiCard
             title="Alertes actives"
-            icon={<Siren className="size-4 text-amber-600" />}
-            value={statsLoading ? null : `${stats?.activeAlertsCount ?? 0}`}
-            loading={statsLoading}
-            error={statsError}
-            className={panelClass}
-            softTextClass={softTextClass}
+            icon={<Siren className="size-4 text-red-500" />}
+            iconBg="bg-red-50"
+            value={loading ? null : `${stats?.activeAlertsCount ?? 0}`}
+            trend={formatTrend(stats?.trendAlerts, true)}
+            loading={loading}
           />
         </section>
 
-        <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-          <Card className={`xl:col-span-2 ${panelClass}`}>
-            <CardHeader>
-              <CardTitle>Carte des parcelles</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {parcellesLoading ? (
-                <Skeleton className="h-[360px] w-full" />
-              ) : parcellesError ? (
-                <p className="text-sm text-destructive">{parcellesError}</p>
-              ) : (
-                <>
-                  <div className="h-[360px] overflow-hidden rounded-md border">
-                    <MapContainer center={mapCenter} zoom={8} className="h-full w-full" zoomControl={false}>
-                      <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      />
-                      <ZoomControl position="bottomright" />
-                      {parcelles.map((parcelle) => (
-                        <Polygon
-                          key={parcelle._id}
-                          positions={(parcelle.geometry.coordinates[0] ?? []).map((coord) => [coord[1], coord[0]])}
-                          pathOptions={{
-                            color: getNdviColor(parcelle.ndviMoyen),
-                            fillColor: getNdviColor(parcelle.ndviMoyen),
-                            fillOpacity: 0.35,
-                            weight: selectedParcelleId === parcelle._id ? 3 : 2,
-                          }}
-                          eventHandlers={{ click: () => setSelectedParcelleId(parcelle._id) }}
-                        />
-                      ))}
-                    </MapContainer>
-                  </div>
-                  <div className={`flex flex-wrap gap-4 text-xs ${softTextClass}`}>
-                    <LegendDot color="#16a34a" label="NDVI > 0.6" />
-                    <LegendDot color="#eab308" label="NDVI 0.3 - 0.6" />
-                    <LegendDot color="#dc2626" label="NDVI < 0.3" />
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className={panelClass}>
-            <CardHeader>
-              <CardTitle>5 dernières alertes actives</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {alertsLoading && (
-                <>
-                  <Skeleton className="h-16 w-full" />
-                  <Skeleton className="h-16 w-full" />
-                  <Skeleton className="h-16 w-full" />
-                </>
-              )}
-              {!alertsLoading && alertsError && <p className="text-sm text-destructive">{alertsError}</p>}
-              {!alertsLoading && !alertsError && alerts.length === 0 && (
-                <p className="text-sm text-muted-foreground">Aucune alerte active.</p>
-              )}
-              {!alertsLoading &&
-                !alertsError &&
-                alerts.map((alert) => {
-                  const critical = alert.type === "Santé";
-                  const label = alert.rapport?.toLowerCase().includes("hausse")
-                    || alert.rapport?.toLowerCase().includes("baisse")
-                    ? "Variation rapide"
-                    : "Seuil absolu";
-                  return (
-                    <div key={alert._id} className={`rounded-md border px-3 py-2 ${critical ? "border-red-500/70 bg-red-950/30" : "border-amber-500/70 bg-amber-950/30"}`}>
-                      <p className="text-sm font-medium">{alert.parcelleId?.nom ?? "Parcelle"}</p>
-                      <p className={`text-xs ${softTextClass}`}>
-                        {alert.type} · {label} · {formatNumber(alert.valeurIndice, 3)}
-                      </p>
-                      <p className={`text-xs ${softTextClass}`}>{new Date(alert.date).toLocaleString("fr-FR")}</p>
-                    </div>
-                  );
-                })}
-            </CardContent>
-          </Card>
-        </section>
-
-        <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-          <Card className={`xl:col-span-2 ${panelClass}`}>
-            <CardHeader className="gap-3">
-              <CardTitle>Série temporelle NDVI / NDWI</CardTitle>
+        {/* Bar Chart */}
+        <section>
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-0">
+              <CardTitle className="text-base font-bold text-slate-800">Évolution des indices satellitaires</CardTitle>
               <div className="flex flex-wrap items-center gap-2">
-                <label className={`text-xs ${softTextClass}`}>Parcelle</label>
                 <select
-                  className="rounded-md border border-emerald-700 bg-emerald-950/40 px-2 py-1 text-sm text-emerald-50"
+                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-600 shadow-sm"
                   value={selectedParcelleId ?? ""}
                   onChange={(event) => setSelectedParcelleId(event.target.value)}
                 >
@@ -315,98 +215,106 @@ const DashboardPage = () => {
                     </option>
                   ))}
                 </select>
-                <label className={`ml-2 text-xs ${softTextClass}`}>Début</label>
-                <input
-                  type="date"
-                  className="rounded-md border border-emerald-700 bg-emerald-950/40 px-2 py-1 text-sm text-emerald-50"
-                  value={dateRange.debut}
-                  onChange={(event) => setDateRange((prev) => ({ ...prev, debut: event.target.value }))}
-                />
-                <label className={`text-xs ${softTextClass}`}>Fin</label>
-                <input
-                  type="date"
-                  className="rounded-md border border-emerald-700 bg-emerald-950/40 px-2 py-1 text-sm text-emerald-50"
-                  value={dateRange.fin}
-                  onChange={(event) => setDateRange((prev) => ({ ...prev, fin: event.target.value }))}
-                />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {seriesLoading ? (
-                <Skeleton className="h-[280px] w-full" />
-              ) : seriesError ? (
-                <p className="text-sm text-destructive">{seriesError}</p>
-              ) : !series.length ? (
-                <p className="text-sm text-muted-foreground">Pas de données de série temporelle sur la période.</p>
-              ) : (
-                <div className="h-[280px]">
-                  <Line
-                    data={chartData}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      scales: {
-                        y: { min: 0, max: 1, title: { display: true, text: "Indice" } },
-                        x: { title: { display: true, text: "Date" } },
-                      },
-                    }}
+                <div className="flex items-center gap-1">
+                  <input
+                    type="date"
+                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-600 shadow-sm"
+                    value={dateRange.debut}
+                    onChange={(event) => setDateRange((prev) => ({ ...prev, debut: event.target.value }))}
+                  />
+                  <span className="text-slate-400">-</span>
+                  <input
+                    type="date"
+                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-600 shadow-sm"
+                    value={dateRange.fin}
+                    onChange={(event) => setDateRange((prev) => ({ ...prev, fin: event.target.value }))}
                   />
                 </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className={panelClass}>
-            <CardHeader>
-              <CardTitle>Table des parcelles</CardTitle>
+              </div>
             </CardHeader>
-            <CardContent>
-              {parcellesLoading ? (
-                <Skeleton className="h-[280px] w-full" />
-              ) : parcellesError ? (
-                <p className="text-sm text-destructive">{parcellesError}</p>
-              ) : (
-                <Table className="text-emerald-50">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className={softTextClass}>Nom</TableHead>
-                      <TableHead className={softTextClass}>Surface</TableHead>
-                      <TableHead className={softTextClass}>NDVI</TableHead>
-                      <TableHead className={softTextClass}>Statut</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {parcelles.map((parcelle) => (
-                      <TableRow
-                        key={parcelle._id}
-                        className="cursor-pointer"
-                        onClick={() => navigate(`/parcelles/${parcelle._id}`)}
-                      >
-                        <TableCell>{parcelle.nom}</TableCell>
-                        <TableCell>{formatHa(parcelle.surface ?? 0)}</TableCell>
-                        <TableCell>{formatNumber(parcelle.ndviMoyen, 3)}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={
-                              parcelle.status === "critical"
-                                ? "border-red-500 text-red-300"
-                                : parcelle.status === "warning"
-                                  ? "border-amber-500 text-amber-300"
-                                  : "border-emerald-500 text-emerald-300"
-                            }
-                          >
-                            {parcelle.status ?? "ok"}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+            <CardContent className="pt-4">
+              <div className="h-[300px] w-full">
+                {serieLoading ? <Skeleton className="h-full w-full" /> : <Bar data={barChartData} options={barChartOptions} />}
+              </div>
             </CardContent>
           </Card>
         </section>
+
+        {/* Bottom Charts */}
+        <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* Donut Chart */}
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base font-bold text-slate-800">Statut des parcelles</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="relative h-40 w-40">
+                  {loading ? <Skeleton className="h-full w-full rounded-full" /> : <Doughnut data={donutChartData} options={donutChartOptions} />}
+                </div>
+                <div className="flex-1 space-y-4 pl-8">
+                  {loading ? (
+                    <Skeleton className="h-20 w-full" />
+                  ) : (
+                    statusDist.map(item => {
+                      const total = statusDist.reduce((acc, curr) => acc + curr.value, 0);
+                      const percent = total > 0 ? Math.round((item.value / total) * 100) : 0;
+                      return (
+                        <div key={item.name} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-block size-2.5 rounded-full" style={{ backgroundColor: statusColors[item.name] || "#cbd5e1" }} />
+                            <span className="text-slate-600">{item.name}</span>
+                          </div>
+                          <span className="font-bold text-slate-800">{percent}%</span>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div className="pt-4">
+                    <p className="text-[10px] text-slate-400">Source<br />Sentinel-2 - GEE</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Wilayas List */}
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base font-bold text-slate-800">Parcelles par wilaya</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {loading ? (
+                  <Skeleton className="h-32 w-full" />
+                ) : wilayasDist.length === 0 ? (
+                  <p className="text-sm text-slate-500">Aucune donnée</p>
+                ) : (
+                  wilayasDist.map((item, index) => {
+                    const color = wilayaColors[index % wilayaColors.length];
+                    return (
+                      <div key={item.name} className="flex items-center gap-4 text-sm">
+                        <div className="flex w-24 items-center gap-2 shrink-0">
+                          <span className="inline-block size-2 rounded-full" style={{ backgroundColor: color }} />
+                          <span className="text-slate-600 truncate">{item.name}</span>
+                        </div>
+                        <div className="flex-1 flex items-center">
+                          <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${item.value}%`, backgroundColor: color }} />
+                          </div>
+                        </div>
+                        <div className="w-10 text-right font-bold text-slate-800 shrink-0">
+                          {item.value}%
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
       </main>
     </div>
   );
@@ -415,44 +323,36 @@ const DashboardPage = () => {
 const KpiCard = ({
   title,
   icon,
+  iconBg,
   value,
+  trend,
   loading,
-  error,
-  className,
-  softTextClass,
 }: {
   title: string;
   icon: ReactNode;
+  iconBg: string;
   value: string | null;
+  trend: ReactNode;
   loading: boolean;
-  error: string | null;
-  className?: string;
-  softTextClass?: string;
 }) => (
-  <Card className={className}>
-    <CardHeader className="pb-2">
-      <CardTitle className={`flex items-center gap-2 text-sm font-medium ${softTextClass ?? "text-muted-foreground"}`}>
+  <Card className="border-slate-200 shadow-sm">
+    <CardContent className="p-5 flex flex-col justify-between h-full space-y-4">
+      <div className={`flex size-10 items-center justify-center rounded-md ${iconBg}`}>
         {icon}
-        {title}
-      </CardTitle>
-    </CardHeader>
-    <CardContent>
-      {loading ? (
-        <Skeleton className="h-8 w-24" />
-      ) : error ? (
-        <p className="text-sm text-destructive">{error}</p>
-      ) : (
-        <p className="text-2xl font-bold">{value ?? "—"}</p>
-      )}
+      </div>
+      <div>
+        <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
+        <div className="flex items-end gap-3">
+          {loading ? (
+            <Skeleton className="h-8 w-16" />
+          ) : (
+            <span className="text-2xl font-bold text-slate-800">{value ?? "—"}</span>
+          )}
+          {!loading && trend && <div className="mb-1">{trend}</div>}
+        </div>
+      </div>
     </CardContent>
   </Card>
-);
-
-const LegendDot = ({ color, label }: { color: string; label: string }) => (
-  <div className="flex items-center gap-2">
-    <span className="inline-block size-2.5 rounded-full" style={{ backgroundColor: color }} />
-    {label}
-  </div>
 );
 
 export default DashboardPage;
