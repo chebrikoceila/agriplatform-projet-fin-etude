@@ -275,13 +275,13 @@ Le backend attend un fichier `.env` contenant des informations nécessaires à s
 PORT=5000
 MONGO_URI=mongodb://localhost:27017/agri
 FRONTEND_URL=http://localhost:5173
-JWT_SECRET=your_jwt_secret
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
+JWT_SECRET=votre_jwt_secret
+GOOGLE_CLIENT_ID=votre_google_client_id
+GOOGLE_CLIENT_SECRET=votre_google_client_secret
 GOOGLE_CALLBACK_URL=http://localhost:5000/api/auth/google/callback
 VAPID_SUBJECT=mailto:admin@example.com
-VAPID_PUBLIC_KEY=your_vapid_public_key
-VAPID_PRIVATE_KEY=your_vapid_private_key
+VAPID_PUBLIC_KEY=votre_vapid_public_key
+VAPID_PRIVATE_KEY=votre_vapid_private_key
 ```
 
 La configuration GEE peut passer par `gee-key.json` ou par des identifiants d’authentification Google Cloud / Earth Engine selon la méthode utilisée.
