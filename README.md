@@ -20,7 +20,7 @@
 
 ---
 
-## 🚀 Vision du projet
+##  Vision du projet
 
 AgriTech est une plateforme web de gestion et de surveillance des parcelles agricoles, pensée pour aider les agriculteurs, gestionnaires de terres et conseillers agricoles à mieux suivre l’état de leurs cultures à partir de données satellitaires, météorologiques et de signalements intelligents.
 
@@ -28,7 +28,7 @@ Le projet transforme des images Sentinel-2 et des données environnementales en 
 
 ---
 
-## 🎯 Problème métier
+##  Problème métier
 
 L’agriculture moderne manque encore d’outils simples, rapides et fiables pour :
 
@@ -42,7 +42,7 @@ AgriTech répond à ce besoin en transformant les images et les données environ
 
 ---
 
-## ✅ Ce que fait la plateforme
+##  Ce que fait la plateforme
 
 - Cartographie interactive des parcelles via Leaflet
 - Dessin d’une parcelle sur une carte géographique
@@ -56,7 +56,7 @@ AgriTech répond à ce besoin en transformant les images et les données environ
 
 ---
 
-## 🧠 Valeur ajoutée
+##  Valeur ajoutée
 
 AgriTech se positionne comme une solution de decision support agricole basée sur la géomatique et l’analyse de données. Il combine :
 
@@ -70,7 +70,7 @@ L’objectif est de passer d’un suivi manuel et partiel à une supervision int
 
 ---
 
-## 🏗️ Architecture technique
+##  Architecture technique
 
 ### Frontend
 
@@ -108,7 +108,7 @@ flowchart LR
 
 ---
 
-## 🌾 Indices agronomiques utilisés
+##  Indices agronomiques utilisés
 
 La plateforme s’appuie sur plusieurs indices de végétation reconnus :
 
@@ -121,7 +121,7 @@ Cette combinaison permet une lecture plus complète de la santé agronomique d�
 
 ---
 
-## 📊 Dashboard et surveillance
+##  Dashboard et surveillance
 
 Le dashboard centralise :
 
@@ -138,7 +138,7 @@ Le but est de permettre une lecture rapide et claire pour mieux piloter l’expl
 
 ---
 
-## 🔔 Alertes intelligentes
+##  Alertes intelligentes
 
 Le système détecte des variations anormales dans les indices et déclenche des alertes selon les niveaux suivants :
 
@@ -150,7 +150,7 @@ Les alertes sont visibles dans le centre d’alertes et peuvent être diffusées
 
 ---
 
-## 🗂️ Structure du projet
+##  Structure du projet
 
 ```text
 projet_Fin_d_tude/
@@ -210,7 +210,7 @@ projet_Fin_d_tude/
 
 ---
 
-## 🗄️ Modèle de données
+##  Modèle de données
 
 ```mermaid
 erDiagram
@@ -274,7 +274,7 @@ erDiagram
 
 ---
 
-## 🔌 API principale
+##  API principale
 
 La plateforme expose une API REST backend structurée autour de plusieurs modules : authentification, gestion des parcelles, alertes, dashboard et notifications push.
 
@@ -321,25 +321,7 @@ La plateforme expose une API REST backend structurée autour de plusieurs module
 
 ---
 
-## 📸 Captures d’écran
-
-### Tableau de bord agronomique
-
-![Dashboard AgriTech](https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=1200&q=80)
-
-### Cartographie des parcelles
-
-![Carte des parcelles](https://images.unsplash.com/photo-1464226184884-fa520f5a7a5d?auto=format&fit=crop&w=1200&q=80)
-
-### Analyse de végétation
-
-![Analyse satellitaire](https://images.unsplash.com/photo-1471193945509-9ad0617afabf?auto=format&fit=crop&w=1200&q=80)
-
-> Les images ci-dessus servent de démonstration visuelle. Tu peux les remplacer par des captures réelles de ton application pour un rendu plus professionnel.
-
----
-
-## 🧩 Stack technique
+##  Stack technique
 
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-5.x-000000?logo=express&logoColor=white)
@@ -351,7 +333,7 @@ La plateforme expose une API REST backend structurée autour de plusieurs module
 
 ---
 
-## 🚀 Installation et démarrage
+##  Installation et démarrage
 
 ### 1. Cloner le projet
 
@@ -425,7 +407,7 @@ npm run dev
 
 ---
 
-## 📌 Cas d’usage
+##  Cas d’usage
 
 La plateforme convient à :
 
@@ -437,7 +419,7 @@ La plateforme convient à :
 
 ---
 
-## 💡 Impact attendu
+##  Impact attendu
 
 AgriTech vise à améliorer :
 
@@ -449,7 +431,7 @@ AgriTech vise à améliorer :
 
 ---
 
-## 🛤️ Roadmap
+##  Roadmap
 
 - intégration de modèles IA pour prévision de rendement,
 - recommandations agronomiques personnalisées,
@@ -460,7 +442,7 @@ AgriTech vise à améliorer :
 
 ---
 
-## 📣 Pourquoi ce projet est fort
+##  Pourquoi ce projet est fort
 
 Ce projet allie innovation technologique, impact social et application concrète dans le secteur agricole. Il illustre parfaitement un produit numérique capable de transformer les données spatiales en décisions utiles et concrètes.
 
@@ -472,13 +454,13 @@ C’est une solution qui montre à la fois :
 
 ---
 
-## 👨‍💻 À propos du projet
+##  À propos du projet
 
 Ce projet a été conçu dans le cadre d’un projet de fin d’études, avec l’objectif de démontrer qu’il est possible d’utiliser les technologies web, la télédétection et l’analyse de données pour moderniser le secteur agricole.
 
 ---
 
-## ⭐ Conclusion
+##  Conclusion
 
 AgriTech n’est pas seulement une application de surveillance de parcelles ; c’est une solution de gestion intelligente agricole pensée pour mieux piloter les exploitations, anticiper les risques et favoriser une agriculture plus durable.
 
